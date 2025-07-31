@@ -30,7 +30,7 @@ setup(
     entry_points={
         'console_scripts': [
             "trajectory_planner_node = ros2_traj_pkg.trajectory_planner_node:main",
-            "velocity_filter_node = ros2_traj_pkg.filtervelocity_subscriber_node:main",
+            "filtervelocity_subscriber_node = ros2_traj_pkg.filtervelocity_subscriber_node:main",
         ],
     },
 )
