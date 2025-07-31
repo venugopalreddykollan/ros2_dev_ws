@@ -68,12 +68,29 @@ cd ros2_dev_ws
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 
+# Install development dependencies (for code quality tools)
+pip3 install -r requirements-dev.txt
+
 # Build the workspace (interface package first)
 colcon build --packages-select custom_interface
 colcon build --packages-select ros2_traj_pkg
 
 # Source the workspace
 source install/setup.bash
+```
+
+### Quick Start Commands
+
+```bash
+# Build and run system
+colcon build && source install/setup.bash
+ros2 launch ros2_traj_pkg complete_system_launch.py
+
+# Run code quality checks
+./run_linting.sh
+
+# Auto-format code
+black src/ && isort src/
 ```
 
 ### Launch the System
@@ -123,14 +140,50 @@ colcon build --packages-select ros2_traj_pkg
 ```
 
 ### Code Quality
+
+The workspace includes comprehensive linting and formatting tools to maintain professional code standards.
+
+#### Install Development Dependencies
+```bash
+# Install all linting and formatting tools
+pip3 install -r requirements-dev.txt
+```
+
+#### Run Comprehensive Linting
+```bash
+# From workspace root
+cd /home/ros2/ros2_dev_ws
+
+# Run comprehensive linting on all packages
+./run_linting.sh
+
+# If missing tools (mypy, etc.), install them by pressing 'y' when prompted
+```
+
+#### Individual Quality Checks
+```bash
+# Auto-format code (fixes import ordering and code style)
+black src/
+isort src/
+
+# Check style compliance
+flake8 src/
+
+# Advanced code analysis
+pylint src/
+
+# Type checking
+mypy src/ --ignore-missing-imports
+
+# Security analysis
+bandit -r src/
+```
+
+#### Run Tests
 ```bash
 # Run tests
 colcon test --packages-select ros2_traj_pkg
 colcon test-result --verbose
-
-# Check code quality (from ros2_traj_pkg directory)
-cd src/ros2_traj_pkg
-./run_linting.sh
 ```
 
 ## Features
@@ -141,7 +194,14 @@ cd src/ros2_traj_pkg
 - ✅ Configurable parameters via YAML files
 - ✅ Comprehensive testing framework
 - ✅ Launch files for easy deployment
-- ✅ Code quality tools (flake8, black, pytest)
+- ✅ **Workspace-level code quality tools**:
+  - **Black**: Automatic code formatting
+  - **isort**: Import organization
+  - **Flake8**: Style checking and linting
+  - **Pylint**: Advanced code analysis
+  - **MyPy**: Type checking
+  - **Bandit**: Security analysis
+- ✅ Professional development workflow with automated quality checks
 
 ## Architecture
 
