@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 100
+exclude = 
+    build,
+    install,
+    log,
+    __pycache__,
+    *.egg-info
+ignore = 
+    E203,  # whitespace before ':'
+    W503   # line break before binary operator
+per-file-ignores =
+    __init__.py:F401
