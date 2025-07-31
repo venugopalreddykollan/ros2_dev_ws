@@ -22,6 +22,12 @@ class TrajectoryPlanner(Node):
         self.max_acc = self.get_parameter("max_acceleration").value
         self.max_jerk = self.get_parameter("max_jerk").value
 
+        self.get_logger().info(f"Trajectory parameters loaded:")
+        self.get_logger().info(f"Publisher frequency: {self.freq} Hz")
+        self.get_logger().info(f"Max velocity: {self.max_vel} m/s")
+        self.get_logger().info(f"Max acceleration: {self.max_acc} m/s²")
+        self.get_logger().info(f"Max jerk: {self.max_jerk} m/s³")
+
         # Publisher
         self.pose_pub = self.create_publisher(PoseStamped, "current_pose", 10)
 
@@ -51,6 +57,34 @@ class TrajectoryPlanner(Node):
 
             if duration <= 0.0:
                 raise ValueError("Invalid duration: must be positive.")
+
+            # Calculate trajectory characteristics for validation
+            distance = np.linalg.norm(goal_pos - start_pos)
+            
+            # Estimate maximum velocity and acceleration from 3rd order polynomial
+            # For s(t) = 3t² - 2t³, max velocity occurs at t = 0.5
+            # Max velocity = 1.5 * distance / duration
+            estimated_max_vel = 1.5 * distance / duration
+            
+            # Max acceleration occurs at t = 0 and t = 1
+            # Max acceleration = 6 * distance / duration²
+            estimated_max_acc = 6.0 * distance / (duration * duration)
+            
+            # Validate against limits
+            if estimated_max_vel > self.max_vel:
+                self.get_logger().warn(
+                    f"Estimated max velocity ({estimated_max_vel:.3f} m/s) exceeds limit ({self.max_vel} m/s)"
+                )
+                
+            if estimated_max_acc > self.max_acc:
+                self.get_logger().warn(
+                    f"Estimated max acceleration ({estimated_max_acc:.3f} m/s²) exceeds limit ({self.max_acc} m/s²)"
+                )
+            
+            self.get_logger().info(
+                f"Planning trajectory: distance={distance:.3f}m, duration={duration}s, "
+                f"max_vel={estimated_max_vel:.3f}m/s, max_acc={estimated_max_acc:.3f}m/s²"
+            )
 
             # Generate 3rd order polynomial trajectory with continuous acceleration
             total_steps = int(duration * self.freq)
