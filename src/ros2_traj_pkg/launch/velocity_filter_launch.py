@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+   
 import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -17,7 +17,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='ros2_traj_pkg',
-            executable='velocity_filter_node',
+            executable='filtervelocity_subscriber_node',
             name='velocity_filter',
             parameters=[config_file],
             output='screen',
