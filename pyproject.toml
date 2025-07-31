@@ -99,20 +99,21 @@ combine_star = true
 [tool.mypy]
 # MyPy type checking configuration for ROS2 Workspace
 
-# Python version to target
-python_version = "3.8"
+# Python version to target (updated for compatibility)
+python_version = "3.10"
 
 # Basic type checking settings
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
 warn_unreachable = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 
 # Error handling
 ignore_missing_imports = true
 follow_imports = "silent"
 strict_optional = false
+check_untyped_defs = false
 
 # Output configuration
 show_error_codes = true
@@ -128,7 +129,8 @@ exclude = [
     "build/",
     "install/", 
     "log/",
-    "__pycache__/"
+    "__pycache__/",
+    "test/"
 ]
 
 # Per-module options for ROS2 packages

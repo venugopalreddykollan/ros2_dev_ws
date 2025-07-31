@@ -1,0 +1,12 @@
+[bandit]
+# Bandit security configuration for ROS2 Workspace
+
+# Skip test files and directories for assert warnings
+exclude_dirs = ["test", "tests", "*/test/*", "*/tests/*"]
+
+# Skip specific test patterns
+skips = ["B101"]  # assert_used in test files
+
+# Only check for high and medium severity issues
+confidence = ["HIGH", "MEDIUM"]
+severity = ["HIGH", "MEDIUM"]

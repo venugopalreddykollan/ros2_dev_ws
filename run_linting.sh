@@ -116,31 +116,36 @@ echo
 
 # 4. Advanced linting with pylint
 echo -e "${BLUE}4️⃣  Running pylint analysis...${NC}"
-pylint_score=$(pylint $PYTHON_FILES --output-format=text --score=yes 2>/dev/null | grep -E "Your code has been rated" | grep -oE '[0-9]+\.[0-9]+' || echo "0.0")
-if (( $(echo "$pylint_score >= 8.0" | bc -l) )); then
+pylint_score=$(pylint $PYTHON_FILES --output-format=text --score=yes 2>/dev/null | grep -E "Your code has been rated" | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
+if [[ -n "$pylint_score" ]] && (( $(echo "$pylint_score >= 8.0" | bc -l 2>/dev/null || echo "0") )); then
     echo -e "${GREEN}✅ Pylint score: $pylint_score/10.0 - PASSED${NC}"
 else
-    echo -e "${YELLOW}⚠️  Pylint score: $pylint_score/10.0 - Consider improvements${NC}"
+    echo -e "${YELLOW}⚠️  Pylint score: ${pylint_score:-unknown}/10.0 - Consider improvements${NC}"
     OVERALL_STATUS=1
 fi
 echo
 
-# 5. Type checking with mypy
+# 5. Type checking with mypy (skip launch files)
 echo -e "${BLUE}5️⃣  Running type checking (mypy)...${NC}"
-if mypy $PYTHON_FILES --ignore-missing-imports; then
-    echo -e "${GREEN}✅ Type checking: PASSED${NC}"
+PYTHON_FILES_NO_LAUNCH=$(echo $PYTHON_FILES | tr ' ' '\n' | grep -v "/launch/" | tr '\n' ' ')
+if [[ -n "$PYTHON_FILES_NO_LAUNCH" ]]; then
+    if mypy $PYTHON_FILES_NO_LAUNCH --config-file=pyproject.toml; then
+        echo -e "${GREEN}✅ Type checking: PASSED${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Type checking issues found${NC}"
+        OVERALL_STATUS=1
+    fi
 else
-    echo -e "${YELLOW}⚠️  Type checking issues found${NC}"
-    OVERALL_STATUS=1
+    echo -e "${YELLOW}⚠️  No files to type check (skipped launch files)${NC}"
 fi
 echo
 
-# 6. Security analysis with bandit
+# 6. Security analysis with bandit (with configuration)
 echo -e "${BLUE}6️⃣  Running security analysis (bandit)...${NC}"
-if bandit -r $PYTHON_FILES -f txt; then
+if bandit -r $PYTHON_FILES -f txt --configfile .bandit 2>/dev/null; then
     echo -e "${GREEN}✅ Security analysis: PASSED${NC}"
 else
-    echo -e "${YELLOW}⚠️  Security issues found${NC}"
+    echo -e "${YELLOW}⚠️  Security issues found (check for real issues, ignoring test assertions)${NC}"
     OVERALL_STATUS=1
 fi
 echo

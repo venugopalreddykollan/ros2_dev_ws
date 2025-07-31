@@ -7,10 +7,10 @@ max-line-length = 88
 
 # Ignore specific error codes
 ignore = 
-    E203,  # whitespace before ':' (conflicts with black)
-    E501,  # line too long (handled by black)
-    W503,  # line break before binary operator (black style)
-    F401,  # module imported but unused (sometimes needed for ROS2)
+    E203,
+    E501,
+    W503,
+    F401
 
 # Exclude directories from checking
 exclude = 

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-import unittest
-import rclpy
 import time
-from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+import unittest
+
+from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
+import rclpy
+
 from custom_interface.srv import PlanTrajectory
 
 

@@ -1,8 +1,9 @@
+from geometry_msgs.msg import PoseStamped
+import numpy as np
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped
+
 from custom_interface.srv import PlanTrajectory
-import numpy as np
 
 
 class TrajectoryPlanner(Node):
@@ -32,7 +33,9 @@ class TrajectoryPlanner(Node):
         self.pose_pub = self.create_publisher(PoseStamped, "current_pose", 10)
 
         # Service
-        self.srv = self.create_service(PlanTrajectory, "plan_trajectory", self.plan_callback)
+        self.srv = self.create_service(
+            PlanTrajectory, "plan_trajectory", self.plan_callback
+        )
 
         # Internal state for publishing
         self.trajectory = []
@@ -48,10 +51,18 @@ class TrajectoryPlanner(Node):
         """
         try:
             start_pos = np.array(
-                [request.start.position.x, request.start.position.y, request.start.position.z]
+                [
+                    request.start.position.x,
+                    request.start.position.y,
+                    request.start.position.z,
+                ]
             )
             goal_pos = np.array(
-                [request.goal.position.x, request.goal.position.y, request.goal.position.z]
+                [
+                    request.goal.position.x,
+                    request.goal.position.y,
+                    request.goal.position.z,
+                ]
             )
             duration = request.duration
 
@@ -60,27 +71,27 @@ class TrajectoryPlanner(Node):
 
             # Calculate trajectory characteristics for validation
             distance = np.linalg.norm(goal_pos - start_pos)
-            
+
             # Estimate maximum velocity and acceleration from 3rd order polynomial
             # For s(t) = 3t² - 2t³, max velocity occurs at t = 0.5
             # Max velocity = 1.5 * distance / duration
             estimated_max_vel = 1.5 * distance / duration
-            
+
             # Max acceleration occurs at t = 0 and t = 1
             # Max acceleration = 6 * distance / duration²
             estimated_max_acc = 6.0 * distance / (duration * duration)
-            
+
             # Validate against limits
             if estimated_max_vel > self.max_vel:
                 self.get_logger().warn(
                     f"Estimated max velocity ({estimated_max_vel:.3f} m/s) exceeds limit ({self.max_vel} m/s)"
                 )
-                
+
             if estimated_max_acc > self.max_acc:
                 self.get_logger().warn(
                     f"Estimated max acceleration ({estimated_max_acc:.3f} m/s²) exceeds limit ({self.max_acc} m/s²)"
                 )
-            
+
             self.get_logger().info(
                 f"Planning trajectory: distance={distance:.3f}m, duration={duration}s, "
                 f"max_vel={estimated_max_vel:.3f}m/s, max_acc={estimated_max_acc:.3f}m/s²"
@@ -121,7 +132,9 @@ class TrajectoryPlanner(Node):
             self.timer = self.create_timer(1.0 / self.freq, self.publish_timer_callback)
 
             response.success = True
-            response.message = "Trajectory successfully generated and publishing started."
+            response.message = (
+                "Trajectory successfully generated and publishing started."
+            )
             return response
 
         except Exception as e:
