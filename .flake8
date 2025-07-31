@@ -1,0 +1,49 @@
+[flake8]
+# Flake8 configuration for ROS2 Workspace
+# Applied to all Python packages in the workspace
+
+# Maximum line length (compatible with black)
+max-line-length = 88
+
+# Ignore specific error codes
+ignore = 
+    E203,  # whitespace before ':' (conflicts with black)
+    E501,  # line too long (handled by black)
+    W503,  # line break before binary operator (black style)
+    F401,  # module imported but unused (sometimes needed for ROS2)
+
+# Exclude directories from checking
+exclude = 
+    .git,
+    __pycache__,
+    build,
+    install,
+    log,
+    .venv,
+    venv,
+    *.egg-info,
+    .pytest_cache
+
+# Maximum complexity allowed
+max-complexity = 10
+
+# Per-file ignores for common ROS2 patterns
+per-file-ignores =
+    __init__.py:F401
+    setup.py:E501
+    **/setup.py:E501
+
+# Import order style
+import-order-style = pep8
+
+# Enable additional checks
+select = E,W,F,C
+
+# Show source code for each error
+show-source = true
+
+# Count errors and warnings
+count = true
+
+# Display statistics
+statistics = true

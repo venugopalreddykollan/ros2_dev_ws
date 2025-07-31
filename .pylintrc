@@ -1,0 +1,112 @@
+[MASTER]
+# Pylint configuration for ROS2 Workspace
+
+# Use multiple processes to speed up Pylint
+jobs = 0
+
+# Files or directories to be skipped
+ignore = build,install,log
+
+# Python code to execute, usually for sys.path manipulation
+init-hook = 'import sys; sys.path.append(".")'
+
+# Pickle collected data for later comparisons
+persistent = yes
+
+# Cache directory for pylint
+cache-dir = .pylint_cache
+
+[MESSAGES CONTROL]
+# Disable specific warnings that are common in ROS2 code
+disable = 
+    C0111,  # missing-docstring
+    C0103,  # invalid-name (for ROS2 naming conventions like node_name)
+    R0903,  # too-few-public-methods (common in ROS2 nodes)
+    R0913,  # too-many-arguments (ROS2 callbacks often have many args)
+    W0613,  # unused-argument (ROS2 callbacks often have unused args)
+    W0622,  # redefined-builtin (sometimes needed)
+    C0415,  # import-outside-toplevel (sometimes needed for ROS2)
+    R0901,  # too-many-ancestors (ROS2 inheritance patterns)
+    R0902,  # too-many-instance-attributes
+    C0302,  # too-many-lines (some ROS2 files can be long)
+
+# Enable specific warnings
+enable = 
+    W0611,  # unused-import
+    W0612,  # unused-variable
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length = 88
+
+# Maximum number of lines in a module
+max-module-lines = 1000
+
+# String used as indentation unit
+indent-string = '    '
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args = 8
+
+# Maximum number of locals for function / method body
+max-locals = 20
+
+# Maximum number of return / yield for function / method body
+max-returns = 6
+
+# Maximum number of branch for function / method body
+max-branches = 15
+
+# Maximum number of statements in function / method body
+max-statements = 60
+
+# Maximum number of parents for a class
+max-parents = 7
+
+# Maximum number of attributes for a class
+max-attributes = 10
+
+# Minimum number of public methods for a class
+min-public-methods = 1
+
+# Maximum number of public methods for a class
+max-public-methods = 25
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines = 4
+
+# Ignore comments when computing similarities
+ignore-comments = yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings = yes
+
+# Ignore imports when computing similarities
+ignore-imports = no
+
+[VARIABLES]
+# Tells whether we should check for unused import in __init__ files
+init-import = no
+
+# List of strings which can identify a callback function
+callbacks = cb_,_cb
+
+# List of qualified module names which can have objects that can redefine builtins
+redefining-builtins-modules = six.moves,past.builtins,future.builtins,builtins,io
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes
+defining-attr-methods = __init__,__new__,setUp,__post_init__
+
+# List of member names, which should be excluded from the protected access warning
+exclude-protected = _asdict,_fields,_replace,_source,_make
+
+[IMPORTS]
+# Deprecated modules which should not be used
+deprecated-modules = optparse,tkinter.tix
+
+[EXCEPTIONS]
+# Modules that can be imported at any level, not just the top level
+overgeneral-exceptions = Exception,BaseException

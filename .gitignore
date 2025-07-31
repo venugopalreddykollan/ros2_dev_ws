@@ -58,8 +58,11 @@ src/**/install/
 src/**/log/
 
 # === PROJECT-SPECIFIC EXCLUSIONS ===
-# Exclude pyproject.toml (not standard for ROS2 packages)
-**/pyproject.toml
+# Exclude pyproject.toml in packages (not standard for ROS2 packages)
+src/**/pyproject.toml
+
+# Allow workspace-level pyproject.toml for linting configuration
+!pyproject.toml
 
 # Exclude personal configuration
 config/personal/
