@@ -141,7 +141,7 @@ colcon build --packages-select ros2_traj_pkg
 
 ### Code Quality
 
-The workspace includes comprehensive linting and formatting tools to maintain professional code standards.
+The workspace includes comprehensive linting and formatting tools to maintain professional code standards across all packages.
 
 #### Install Development Dependencies
 ```bash
@@ -149,7 +149,7 @@ The workspace includes comprehensive linting and formatting tools to maintain pr
 pip3 install -r requirements-dev.txt
 ```
 
-#### Run Comprehensive Linting
+#### Run Workspace-Level Linting
 ```bash
 # From workspace root
 cd /home/ros2/ros2_dev_ws
@@ -158,6 +158,27 @@ cd /home/ros2/ros2_dev_ws
 ./run_linting.sh
 
 # If missing tools (mypy, etc.), install them by pressing 'y' when prompted
+```
+
+#### What Gets Checked
+- **Black**: Code formatting and style consistency
+- **isort**: Import organization and sorting
+- **Flake8**: PEP8 compliance and style violations
+- **Pylint**: Advanced code analysis and quality scoring
+- **MyPy**: Type checking (excluding launch files)
+- **Bandit**: Security analysis (excluding test assertions)
+
+#### Automatic Fixes
+```bash
+# Auto-format code with Black
+black src/
+
+# Sort imports with isort
+isort src/
+
+# Or run both automatically during linting
+./run_linting.sh  # Will suggest these commands if issues found
+```
 ```
 
 #### Individual Quality Checks
