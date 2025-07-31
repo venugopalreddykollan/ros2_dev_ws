@@ -1,0 +1,4 @@
+velocity_filter_node:
+  ros__parameters:
+    cutoff_frequency: 2.0        # [Hz] Low-pass filter cutoff frequency
+    sample_rate: 50.0           # [Hz] Expected sample rate (should match trajectory publisher)

@@ -1,0 +1,6 @@
+trajectory_node:
+  ros__parameters:
+    publisher_frequency: 50           # [Hz]
+    max_velocity: 1.0                 # [m/s]
+    max_acceleration: 0.5             # [m/s^2]
+    max_jerk: 2.0                     # [m/s^3]
