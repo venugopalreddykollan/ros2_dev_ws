@@ -1,6 +1,15 @@
-# ROS2 Trajectory Planning Workspace
+# ROS2 Velocity Filtering & Trajectory Planning Workspace
 
-A complete ROS2 workspace containing trajectory planning packages with 3rd order polynomial generation and velocity filtering capabilities.
+A complete ROS2 workspace featuring advanced trajectory planning with 3rd order polynomial generation, real-time velocity filtering, and comprehensive visualization capabilities.
+
+## 🎯 Overview
+
+This workspace provides a robust ROS2 system for trajectory planning and velocity analysis, featuring:
+- **3rd Order Polynomial Trajectory Generation** with smooth acceleration profiles
+- **Real-time Velocity Filtering** using low-pass RC filters
+- **Multiple Visualization Options** including rqt_plot and terminal-based monitoring
+- **Comprehensive Parameter Management** via YAML configuration
+- **Professional Development Tools** with testing and quality assurance
 
 ## Repository Structure
 
@@ -28,12 +37,13 @@ ros2_dev_ws/                    # Workspace root
 
 ### 2. ros2_traj_pkg  
 - **Type**: Python package
-- **Purpose**: Main trajectory planning functionality
+- **Purpose**: Advanced trajectory planning and velocity filtering
 - **Contains**:
-  - Trajectory planner node with 3rd order polynomial generation
-  - Velocity filter subscriber node with low-pass filtering
-  - Launch files for system deployment
-  - Configuration files and tests
+  - **Trajectory Planner Node**: 3rd order polynomial generation with parameter validation
+  - **Velocity Filter Node**: Low-pass filtering with magnitude publishing for visualization
+  - **Launch Files**: Complete system deployment with parameter loading
+  - **Configuration Files**: YAML-based parameter management
+  - **Visualization Tools**: Terminal monitor and rqt_plot support
 
 ## Quick Start
 
