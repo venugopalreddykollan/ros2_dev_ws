@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, Vector3Stamped
+from std_msgs.msg import Float64
 import numpy as np
 import math
 from collections import deque
@@ -43,6 +44,10 @@ class VelocityFilterNode(Node):
         self.filtered_velocity_publisher = self.create_publisher(
             Vector3Stamped, "filtered_velocity", 10
         )
+        
+        # Publishers for velocity magnitudes (better for rqt_plot visualization)
+        self.raw_speed_publisher = self.create_publisher(Float64, "raw_speed", 10)
+        self.filtered_speed_publisher = self.create_publisher(Float64, "filtered_speed", 10)
 
         # State variables
         self.previous_pose = None
@@ -91,19 +96,25 @@ class VelocityFilterNode(Node):
         position_diff = curr_pose - prev_pose
         raw_velocity = position_diff / dt
 
-        # Log raw velocity calculation
-        self.get_logger().info(
-            f"Raw velocity at {curr_time.nanoseconds/1e9:.3f}s: "
-            f"[{raw_velocity[0]:.3f}, {raw_velocity[1]:.3f}, {raw_velocity[2]:.3f}] m/s"
-        )
-
         # Apply low-pass filter: v_filtered = alpha * v_raw + (1 - alpha) * v_filtered_prev
         self.filtered_velocity = self.alpha * raw_velocity + (1 - self.alpha) * self.filtered_velocity
 
-        # Log filtered velocity
+        # Calculate velocity magnitudes (speeds)
+        raw_speed = np.linalg.norm(raw_velocity)
+        filtered_speed = np.linalg.norm(self.filtered_velocity)
+
+        # Log velocity information including magnitudes
+        self.get_logger().info(
+            f"Raw velocity at {curr_time.nanoseconds/1e9:.3f}s: "
+            f"[{raw_velocity[0]:.3f}, {raw_velocity[1]:.3f}, {raw_velocity[2]:.3f}] m/s | "
+            f"Speed: {raw_speed:.3f} m/s"
+        )
+        
         self.get_logger().info(
             f"Filtered velocity at {curr_time.nanoseconds/1e9:.3f}s: "
-            f"[{self.filtered_velocity[0]:.3f}, {self.filtered_velocity[1]:.3f}, {self.filtered_velocity[2]:.3f}] m/s"
+            f"[{self.filtered_velocity[0]:.3f}, {self.filtered_velocity[1]:.3f}, {self.filtered_velocity[2]:.3f}] m/s | "
+            f"Speed: {filtered_speed:.3f} m/s | "
+            f"Speed Reduction: {((raw_speed - filtered_speed) / raw_speed * 100) if raw_speed > 0 else 0:.1f}%"
         )
 
         # Publish raw velocity
@@ -123,6 +134,15 @@ class VelocityFilterNode(Node):
         filtered_vel_msg.vector.y = self.filtered_velocity[1]
         filtered_vel_msg.vector.z = self.filtered_velocity[2]
         self.filtered_velocity_publisher.publish(filtered_vel_msg)
+
+        # Publish velocity magnitudes for rqt_plot visualization
+        raw_speed_msg = Float64()
+        raw_speed_msg.data = raw_speed
+        self.raw_speed_publisher.publish(raw_speed_msg)
+
+        filtered_speed_msg = Float64()
+        filtered_speed_msg.data = filtered_speed
+        self.filtered_speed_publisher.publish(filtered_speed_msg)
 
 
 def main(args=None):
