@@ -34,7 +34,7 @@ def generate_launch_description():
         # Launch velocity filter node
         Node(
             package='ros2_traj_pkg',
-            executable='velocity_filter_node',
+            executable='filtervelocity_subscriber_node',
             name='velocity_filter',
             parameters=[velocity_filter_config_file],
             output='screen',
