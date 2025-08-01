@@ -19,7 +19,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy
 from rcl_interfaces.msg import ParameterDescriptor, FloatingPointRange
 
 from geometry_msgs.msg import PoseStamped, Vector3Stamped
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Header
 
 
 class VelocityFilterNode(Node):
@@ -32,6 +32,9 @@ class VelocityFilterNode(Node):
     Published Topics:
         /raw_velocity, /filtered_velocity (geometry_msgs/Vector3Stamped): Velocity vectors
         /raw_speed, /filtered_speed (std_msgs/Float64): Velocity magnitudes
+        /velocity_comparison (geometry_msgs/Vector3Stamped): Velocity difference for analysis
+        /speed_difference (std_msgs/Float64): Speed difference for filter effectiveness
+        /filter_effectiveness (std_msgs/Float64): Filter performance metric (0-1)
     
     Parameters:
         cutoff_frequency (float): Filter cutoff frequency [Hz] (default: 2.0)
@@ -54,6 +57,11 @@ class VelocityFilterNode(Node):
         # State variables
         self.filtered_velocity: np.ndarray = np.array([0.0, 0.0, 0.0])
         self.pose_history: Deque[Tuple[np.ndarray, any]] = deque(maxlen=2)
+        
+        # Statistics for PlotJuggler visualization
+        self.data_count = 0
+        self.max_raw_speed = 0.0
+        self.max_filtered_speed = 0.0
         
         self.get_logger().info(f"VelocityFilterNode started - cutoff: {self.cutoff_freq}Hz")
     
@@ -104,6 +112,11 @@ class VelocityFilterNode(Node):
         self.filtered_velocity_pub = self.create_publisher(Vector3Stamped, "filtered_velocity", vel_qos)
         self.raw_speed_pub = self.create_publisher(Float64, "raw_speed", vel_qos)
         self.filtered_speed_pub = self.create_publisher(Float64, "filtered_speed", vel_qos)
+        
+        # Additional publishers for PlotJuggler visualization and analysis
+        self.velocity_comparison_pub = self.create_publisher(Vector3Stamped, "velocity_comparison", vel_qos)
+        self.speed_difference_pub = self.create_publisher(Float64, "speed_difference", vel_qos)
+        self.filter_effectiveness_pub = self.create_publisher(Float64, "filter_effectiveness", vel_qos)
 
     def pose_callback(self, msg: PoseStamped) -> None:
         """Process pose message and compute velocities."""
@@ -157,6 +170,18 @@ class VelocityFilterNode(Node):
             raw_speed = float(np.linalg.norm(raw_velocity))
             filtered_speed = float(np.linalg.norm(self.filtered_velocity))
             
+            # Update statistics for PlotJuggler
+            self.data_count += 1
+            self.max_raw_speed = max(self.max_raw_speed, raw_speed)
+            self.max_filtered_speed = max(self.max_filtered_speed, filtered_speed)
+            
+            # Log progress periodically (every 100 samples)
+            if self.data_count % 100 == 0:
+                self.get_logger().info(
+                    f"Processed {self.data_count} velocity samples. "
+                    f"Max speeds: Raw={self.max_raw_speed:.3f}, Filtered={self.max_filtered_speed:.3f} m/s"
+                )
+            
             # Publish data
             self._publish_velocity_data(raw_velocity, self.filtered_velocity, curr_time, raw_speed, filtered_speed)
             
@@ -165,25 +190,48 @@ class VelocityFilterNode(Node):
     
     def _publish_velocity_data(self, raw_vel: np.ndarray, filt_vel: np.ndarray, 
                               timestamp, raw_speed: float, filt_speed: float) -> None:
-        """Publish velocity data to all topics."""
+        """Publish velocity data to all topics with enhanced PlotJuggler support."""
         try:
+            # Create header for consistent timestamping
+            header = Header()
+            header.stamp = timestamp.to_msg()
+            header.frame_id = "world"
+            
             # Create and publish raw velocity
             raw_msg = Vector3Stamped()
-            raw_msg.header.stamp = timestamp.to_msg()
-            raw_msg.header.frame_id = "world"
+            raw_msg.header = header
             raw_msg.vector.x, raw_msg.vector.y, raw_msg.vector.z = map(float, raw_vel)
             self.raw_velocity_pub.publish(raw_msg)
 
             # Create and publish filtered velocity
             filt_msg = Vector3Stamped()
-            filt_msg.header.stamp = timestamp.to_msg()
-            filt_msg.header.frame_id = "world"
+            filt_msg.header = header
             filt_msg.vector.x, filt_msg.vector.y, filt_msg.vector.z = map(float, filt_vel)
             self.filtered_velocity_pub.publish(filt_msg)
 
             # Publish speeds
             self.raw_speed_pub.publish(Float64(data=raw_speed))
             self.filtered_speed_pub.publish(Float64(data=filt_speed))
+            
+            # Enhanced PlotJuggler visualization data
+            
+            # Velocity difference (shows filter effect)
+            velocity_diff = raw_vel - filt_vel
+            diff_msg = Vector3Stamped()
+            diff_msg.header = header
+            diff_msg.vector.x, diff_msg.vector.y, diff_msg.vector.z = map(float, velocity_diff)
+            self.velocity_comparison_pub.publish(diff_msg)
+            
+            # Speed difference (magnitude of filtering effect)
+            speed_diff = abs(raw_speed - filt_speed)
+            self.speed_difference_pub.publish(Float64(data=speed_diff))
+            
+            # Filter effectiveness (0-1 scale: higher means more filtering)
+            if raw_speed > 0.001:  # Avoid division by zero
+                effectiveness = min(1.0, speed_diff / raw_speed)
+            else:
+                effectiveness = 0.0
+            self.filter_effectiveness_pub.publish(Float64(data=effectiveness))
             
         except Exception as e:
             self.get_logger().error(f"Error publishing: {e}")
