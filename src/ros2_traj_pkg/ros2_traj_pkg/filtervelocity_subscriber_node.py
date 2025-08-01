@@ -1,175 +1,212 @@
 #!/usr/bin/env python3
+"""
+Velocity Filter Node for ROS2.
 
-from collections import deque
+Computes and filters velocities from pose data using low-pass filtering.
+
+Author: Venugopal Reddy Kollan
+License: Apache License 2.0
+"""
+
 import math
+from collections import deque
+from typing import Optional, Deque, Tuple
 
-from geometry_msgs.msg import PoseStamped, Vector3Stamped
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rcl_interfaces.msg import ParameterDescriptor, FloatingPointRange
+
+from geometry_msgs.msg import PoseStamped, Vector3Stamped
 from std_msgs.msg import Float64
 
 
 class VelocityFilterNode(Node):
     """
-    ROS2 node that subscribes to pose topic, computes velocity,
-    and publishes both raw and filtered velocity.
+    ROS2 node for velocity computation and low-pass filtering from pose data.
+    
+    Subscribed Topics:
+        /current_pose (geometry_msgs/PoseStamped): Input pose data
+    
+    Published Topics:
+        /raw_velocity, /filtered_velocity (geometry_msgs/Vector3Stamped): Velocity vectors
+        /raw_speed, /filtered_speed (std_msgs/Float64): Velocity magnitudes
+    
+    Parameters:
+        cutoff_frequency (float): Filter cutoff frequency [Hz] (default: 2.0)
+        sample_rate (float): Expected pose rate [Hz] (default: 50.0)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the velocity filter node."""
         super().__init__("velocity_filter_node")
 
-        # Declare parameters
-        self.declare_parameter("cutoff_frequency", 2.0)  # Hz
-        self.declare_parameter(
-            "sample_rate", 50.0
-        )  # Hz (should match trajectory publisher)
-
-        # Get parameters
-        self.cutoff_freq = self.get_parameter("cutoff_frequency").value
-        self.sample_rate = self.get_parameter("sample_rate").value
-
-        # Calculate filter coefficient for simple low-pass filter
-        # RC = 1/(2*pi*fc), alpha = dt/(RC + dt)
+        # Declare parameters with descriptors
+        self._declare_parameters()
+        
+        # Initialize parameters and filter
+        self._initialize_filter()
+        
+        # Setup communication
+        self._setup_communication()
+        
+        # State variables
+        self.filtered_velocity: np.ndarray = np.array([0.0, 0.0, 0.0])
+        self.pose_history: Deque[Tuple[np.ndarray, any]] = deque(maxlen=2)
+        
+        self.get_logger().info(f"VelocityFilterNode started - cutoff: {self.cutoff_freq}Hz")
+    
+    def _declare_parameters(self) -> None:
+        """Declare parameters with validation ranges."""
+        cutoff_desc = ParameterDescriptor(
+            description="Low-pass filter cutoff frequency in Hz",
+            floating_point_range=[FloatingPointRange(from_value=0.1, to_value=50.0)]
+        )
+        sample_desc = ParameterDescriptor(
+            description="Expected pose message rate in Hz",
+            floating_point_range=[FloatingPointRange(from_value=1.0, to_value=1000.0)]
+        )
+        
+        self.declare_parameter("cutoff_frequency", 2.0, cutoff_desc)
+        self.declare_parameter("sample_rate", 50.0, sample_desc)
+    
+    def _initialize_filter(self) -> None:
+        """Initialize filter parameters with validation."""
+        self.cutoff_freq: float = self.get_parameter("cutoff_frequency").value
+        self.sample_rate: float = self.get_parameter("sample_rate").value
+        
+        # Validate ranges
+        if not (0.1 <= self.cutoff_freq <= 50.0):
+            raise ValueError(f"Invalid cutoff frequency: {self.cutoff_freq}")
+        if not (1.0 <= self.sample_rate <= 1000.0):
+            raise ValueError(f"Invalid sample rate: {self.sample_rate}")
+        
+        # Calculate filter coefficient: α = dt/(RC + dt)
         rc = 1.0 / (2.0 * math.pi * self.cutoff_freq)
         dt = 1.0 / self.sample_rate
-        self.alpha = dt / (rc + dt)
-
-        self.get_logger().info(
-            f"Low-pass filter: cutoff={self.cutoff_freq} Hz, alpha={self.alpha:.4f}"
-        )
-
-        # Subscriber to pose topic
+        self.alpha: float = dt / (rc + dt)
+    
+    def _setup_communication(self) -> None:
+        """Setup publishers and subscribers with appropriate QoS."""
+        # Reliable QoS for pose input
+        pose_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
+        # Best effort QoS for velocity output
+        vel_qos = QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT)
+        
+        # Subscriber
         self.pose_subscriber = self.create_subscription(
-            PoseStamped, "current_pose", self.pose_callback, 10
+            PoseStamped, "current_pose", self.pose_callback, pose_qos
         )
+        
+        # Publishers
+        self.raw_velocity_pub = self.create_publisher(Vector3Stamped, "raw_velocity", vel_qos)
+        self.filtered_velocity_pub = self.create_publisher(Vector3Stamped, "filtered_velocity", vel_qos)
+        self.raw_speed_pub = self.create_publisher(Float64, "raw_speed", vel_qos)
+        self.filtered_speed_pub = self.create_publisher(Float64, "filtered_speed", vel_qos)
 
-        # Publishers for velocities
-        self.raw_velocity_publisher = self.create_publisher(
-            Vector3Stamped, "raw_velocity", 10
-        )
-        self.filtered_velocity_publisher = self.create_publisher(
-            Vector3Stamped, "filtered_velocity", 10
-        )
+    def pose_callback(self, msg: PoseStamped) -> None:
+        """Process pose message and compute velocities."""
+        try:
+            # Basic validation
+            if not hasattr(msg.pose, 'position'):
+                self.get_logger().error("Invalid pose message")
+                return
+                
+            current_time = self.get_clock().now()
+            current_pose = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+            
+            # Check for valid values
+            if not np.all(np.isfinite(current_pose)):
+                self.get_logger().error(f"Invalid pose values: {current_pose}")
+                return
+            
+            # Store pose and compute velocity if we have enough data
+            self.pose_history.append((current_pose, current_time))
+            
+            if len(self.pose_history) >= 2:
+                self._compute_and_publish_velocity()
+                
+        except Exception as e:
+            self.get_logger().error(f"Error in pose callback: {e}")
 
-        # Publishers for velocity magnitudes (better for rqt_plot visualization)
-        self.raw_speed_publisher = self.create_publisher(Float64, "raw_speed", 10)
-        self.filtered_speed_publisher = self.create_publisher(
-            Float64, "filtered_speed", 10
-        )
+    def _compute_and_publish_velocity(self) -> None:
+        """Compute and publish raw and filtered velocities."""
+        try:
+            # Get recent poses
+            (prev_pose, prev_time), (curr_pose, curr_time) = self.pose_history[-2], self.pose_history[-1]
+            
+            # Calculate time difference
+            dt = (curr_time - prev_time).nanoseconds / 1e9
+            if dt <= 0:
+                self.get_logger().warn(f"Invalid time difference: {dt}")
+                return
+            
+            # Compute raw velocity
+            raw_velocity = (curr_pose - prev_pose) / dt
+            
+            # Validate velocity
+            if not np.all(np.isfinite(raw_velocity)):
+                self.get_logger().error("Invalid velocity computed")
+                return
 
-        # State variables
-        self.previous_pose = None
-        self.previous_time = None
-        self.filtered_velocity = np.array([0.0, 0.0, 0.0])
-        self.pose_history = deque(
-            maxlen=2
-        )  # Store last 2 poses for velocity calculation
+            # Apply low-pass filter
+            self.filtered_velocity = self.alpha * raw_velocity + (1 - self.alpha) * self.filtered_velocity
+            
+            # Calculate speeds
+            raw_speed = float(np.linalg.norm(raw_velocity))
+            filtered_speed = float(np.linalg.norm(self.filtered_velocity))
+            
+            # Publish data
+            self._publish_velocity_data(raw_velocity, self.filtered_velocity, curr_time, raw_speed, filtered_speed)
+            
+        except Exception as e:
+            self.get_logger().error(f"Error computing velocity: {e}")
+    
+    def _publish_velocity_data(self, raw_vel: np.ndarray, filt_vel: np.ndarray, 
+                              timestamp, raw_speed: float, filt_speed: float) -> None:
+        """Publish velocity data to all topics."""
+        try:
+            # Create and publish raw velocity
+            raw_msg = Vector3Stamped()
+            raw_msg.header.stamp = timestamp.to_msg()
+            raw_msg.header.frame_id = "world"
+            raw_msg.vector.x, raw_msg.vector.y, raw_msg.vector.z = map(float, raw_vel)
+            self.raw_velocity_pub.publish(raw_msg)
 
-        self.get_logger().info("Velocity Filter Node initialized.")
+            # Create and publish filtered velocity
+            filt_msg = Vector3Stamped()
+            filt_msg.header.stamp = timestamp.to_msg()
+            filt_msg.header.frame_id = "world"
+            filt_msg.vector.x, filt_msg.vector.y, filt_msg.vector.z = map(float, filt_vel)
+            self.filtered_velocity_pub.publish(filt_msg)
 
-    def pose_callback(self, msg):
-        """
-        Process received pose and compute velocities.
-
-        Args:
-            msg (PoseStamped): The received pose message
-        """
-        current_time = self.get_clock().now()
-        current_pose = np.array(
-            [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
-        )
-
-        # Store pose with timestamp
-        self.pose_history.append((current_pose, current_time))
-
-        # Log received pose with timestamp
-        self.get_logger().info(
-            f"Received pose at {current_time.nanoseconds/1e9:.3f}s: "
-            f"[{current_pose[0]:.3f}, {current_pose[1]:.3f}, {current_pose[2]:.3f}]"
-        )
-
-        # Need at least 2 poses to compute velocity
-        if len(self.pose_history) >= 2:
-            self.compute_and_publish_velocity()
-
-    def compute_and_publish_velocity(self):
-        """Compute velocity from consecutive poses and publish both raw and filtered velocities."""
-        # Get the two most recent poses
-        (prev_pose, prev_time), (curr_pose, curr_time) = (
-            self.pose_history[-2],
-            self.pose_history[-1],
-        )
-
-        # Calculate time difference
-        dt = (curr_time - prev_time).nanoseconds / 1e9  # Convert to seconds
-
-        if dt <= 0:
-            self.get_logger().warn("Invalid time difference for velocity calculation")
-            return
-
-        # Compute raw velocity (euclidean difference / time)
-        position_diff = curr_pose - prev_pose
-        raw_velocity = position_diff / dt
-
-        # Apply low-pass filter: v_filtered = alpha * v_raw + (1 - alpha) * v_filtered_prev
-        self.filtered_velocity = (
-            self.alpha * raw_velocity + (1 - self.alpha) * self.filtered_velocity
-        )
-
-        # Calculate velocity magnitudes (speeds)
-        raw_speed = np.linalg.norm(raw_velocity)
-        filtered_speed = np.linalg.norm(self.filtered_velocity)
-
-        # Log velocity information including magnitudes
-        self.get_logger().info(
-            f"Raw velocity at {curr_time.nanoseconds/1e9:.3f}s: "
-            f"[{raw_velocity[0]:.3f}, {raw_velocity[1]:.3f}, {raw_velocity[2]:.3f}] m/s | "
-            f"Speed: {raw_speed:.3f} m/s"
-        )
-
-        self.get_logger().info(
-            f"Filtered velocity at {curr_time.nanoseconds/1e9:.3f}s: "
-            f"[{self.filtered_velocity[0]:.3f}, {self.filtered_velocity[1]:.3f}, {self.filtered_velocity[2]:.3f}] m/s | "
-            f"Speed: {filtered_speed:.3f} m/s | "
-            f"Speed Reduction: {((raw_speed - filtered_speed) / raw_speed * 100) if raw_speed > 0 else 0:.1f}%"
-        )
-
-        # Publish raw velocity
-        raw_vel_msg = Vector3Stamped()
-        raw_vel_msg.header.stamp = curr_time.to_msg()
-        raw_vel_msg.header.frame_id = "world"
-        raw_vel_msg.vector.x = raw_velocity[0]
-        raw_vel_msg.vector.y = raw_velocity[1]
-        raw_vel_msg.vector.z = raw_velocity[2]
-        self.raw_velocity_publisher.publish(raw_vel_msg)
-
-        # Publish filtered velocity
-        filtered_vel_msg = Vector3Stamped()
-        filtered_vel_msg.header.stamp = curr_time.to_msg()
-        filtered_vel_msg.header.frame_id = "world"
-        filtered_vel_msg.vector.x = self.filtered_velocity[0]
-        filtered_vel_msg.vector.y = self.filtered_velocity[1]
-        filtered_vel_msg.vector.z = self.filtered_velocity[2]
-        self.filtered_velocity_publisher.publish(filtered_vel_msg)
-
-        # Publish velocity magnitudes for rqt_plot visualization
-        raw_speed_msg = Float64()
-        raw_speed_msg.data = raw_speed
-        self.raw_speed_publisher.publish(raw_speed_msg)
-
-        filtered_speed_msg = Float64()
-        filtered_speed_msg.data = filtered_speed
-        self.filtered_speed_publisher.publish(filtered_speed_msg)
+            # Publish speeds
+            self.raw_speed_pub.publish(Float64(data=raw_speed))
+            self.filtered_speed_pub.publish(Float64(data=filt_speed))
+            
+        except Exception as e:
+            self.get_logger().error(f"Error publishing: {e}")
 
 
-def main(args=None):
+def main(args: Optional[list] = None) -> None:
     """Main entry point for the velocity filter node."""
-    rclpy.init(args=args)
-    node = VelocityFilterNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        node = VelocityFilterNode()
+        
+        try:
+            rclpy.spin(node)
+        except KeyboardInterrupt:
+            node.get_logger().info("Node stopped by user")
+        finally:
+            node.destroy_node()
+            
+    except Exception as e:
+        print(f"Failed to start node: {e}")
+        raise
+    finally:
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
