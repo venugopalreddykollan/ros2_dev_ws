@@ -1,14 +1,51 @@
-from geometry_msgs.msg import PoseStamped
-import numpy as np
+#!/usr/bin/env python3
+"""
+Trajectory Planner Node for ROS2.
+
+This module provides trajectory planning services using cubic polynomial interpolation
+for smooth robot motion between waypoints with continuous acceleration profiles.
+
+Author: Venugopal Reddy Kollan
+License: Apache License 2.0
+"""
+
 import rclpy
 from rclpy.node import Node
 
+import numpy as np
+
+from geometry_msgs.msg import PoseStamped
+from typing import Tuple, List, Optional
 from custom_interface.srv import PlanTrajectory
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
 
 class TrajectoryPlanner(Node):
+    """
+    ROS2 node for trajectory planning using cubic polynomial interpolation.
+    
+    This node provides a service to generate smooth trajectories between start
+    and goal poses using 3rd-order polynomials with rest-to-rest boundary conditions.
+    
+    Subscribed Topics:
+        None
+    
+    Published Topics:
+        /current_pose (geometry_msgs/PoseStamped): Current trajectory pose
+    
+    Services:
+        /plan_trajectory (custom_interface/PlanTrajectory): Plan trajectory service
+    
+    Parameters:
+        publisher_frequency (int): Publishing frequency [Hz] (default: 50)
+        max_velocity (float): Maximum velocity limit [m/s] (default: 1.0)
+        max_acceleration (float): Maximum acceleration limit [m/s²] (default: 0.5)
+        max_jerk (float): Maximum jerk limit [m/s³] (default: 2.0)
+    """
 
     def __init__(self):
+        """Initialize the trajectory planner node with parameters and services."""
+        
         super().__init__("trajectory_planner")
 
         # Declare parameters
@@ -29,9 +66,14 @@ class TrajectoryPlanner(Node):
         self.get_logger().info(f"Max acceleration: {self.max_acc} m/s²")
         self.get_logger().info(f"Max jerk: {self.max_jerk} m/s³")
 
-        # Publisher
-        self.pose_pub = self.create_publisher(PoseStamped, "current_pose", 10)
-
+        # # Configure QoS for reliable pose publishing
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            depth=10
+        )
+        self.pose_pub = self.create_publisher(PoseStamped, "current_pose", qos_profile)
+        
         # Service
         self.srv = self.create_service(
             PlanTrajectory, "plan_trajectory", self.plan_callback
@@ -43,35 +85,65 @@ class TrajectoryPlanner(Node):
         self.timer = None
 
         self.get_logger().info("Trajectory Planner Node initialized.")
+    
+    def _validate_position(self, position, name: str) -> np.ndarray:
+        """
+        Validate and extract position from geometry message.
+    
+        Args:
+        position: geometry_msgs.msg.Point - Position to validate
+        name: str - Name for error messages ("start" or "goal")
+    
+        Returns:
+        np.ndarray: Validated position array [x, y, z]
+    
+        Raises:
+        ValueError: If position contains invalid values
+        """
+        try:
+            pos = np.array([position.x, position.y, position.z])
+        
+            # Check for finite values (no NaN, inf, -inf)
+            if not np.all(np.isfinite(pos)):
+                raise ValueError(f"Non-finite values in {name} position: {pos}")
+        
+            # Check for reasonable bounds (adjust as needed for your application)
+            max_coord = 1000.0  # 1km limit - adjust as needed
+            if np.any(np.abs(pos) > max_coord):
+                raise ValueError(f"{name} position exceeds bounds (±{max_coord}m): {pos}")
+            return pos
+        
+        except AttributeError as e:
+            raise ValueError(f"Invalid {name} position message format: {e}")
+        except Exception as e:
+            raise ValueError(f"Failed to extract {name} position: {e}")
 
-    def plan_callback(self, request, response):
+    def plan_callback(self, request: PlanTrajectory.Request, response: PlanTrajectory.Response) -> PlanTrajectory.Response:
         """
         Service callback to plan trajectory from start to goal within duration.
         Returns immediately after trajectory generation; publishing happens asynchronously.
         """
         try:
-            start_pos = np.array(
-                [
-                    request.start.position.x,
-                    request.start.position.y,
-                    request.start.position.z,
-                ]
-            )
-            goal_pos = np.array(
-                [
-                    request.goal.position.x,
-                    request.goal.position.y,
-                    request.goal.position.z,
-                ]
-            )
-            duration = request.duration
-
+            # Validate and extract positions with proper error handling
+            start_pos = self._validate_position(request.start.position, "start")
+            goal_pos = self._validate_position(request.goal.position, "goal")
+        
+            # Validate duration
+            duration = float(request.duration)
             if duration <= 0.0:
-                raise ValueError("Invalid duration: must be positive.")
+                raise ValueError(f"Duration must be positive, got: {duration}")
+            if duration > 300.0:  # 5 minutes max - adjust as needed
+                raise ValueError(f"Duration too large (max 300s), got: {duration}")
 
-            # Calculate trajectory characteristics for validation
+            # Validate that start and goal are different
             distance = np.linalg.norm(goal_pos - start_pos)
+            if distance < 1e-6:
+                self.get_logger().warn("Start and goal positions are nearly identical")
+                response.success = True
+                response.message = "No movement required - positions are identical"
+                return response
 
+            # Continue with existing trajectory calculation...
             # Estimate maximum velocity and acceleration from 3rd order polynomial
             # For s(t) = 3t² - 2t³, max velocity occurs at t = 0.5
             # Max velocity = 1.5 * distance / duration
@@ -137,10 +209,15 @@ class TrajectoryPlanner(Node):
             )
             return response
 
-        except Exception as e:
-            self.get_logger().error(f"Trajectory planning failed: {e}")
+        except ValueError as e:
+            self.get_logger().error(f"Parameter validation error: {e}")
             response.success = False
-            response.message = str(e)
+            response.message = f"Invalid parameters: {str(e)}"
+            return response
+        except RuntimeError as e:
+            self.get_logger().error(f"Trajectory generation error: {e}")
+            response.success = False
+            response.message = f"Generation failed: {str(e)}"
             return response
 
     def publish_timer_callback(self):
@@ -166,12 +243,21 @@ class TrajectoryPlanner(Node):
         self.current_index += 1
 
 
-def main(args=None):
+def main(args=None) -> None:
+    """Main entry point for the trajectory planner node."""
     rclpy.init(args=args)
-    node = TrajectoryPlanner()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    node = None
+    try:
+        node = TrajectoryPlanner()
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        if node is not None:
+            node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
