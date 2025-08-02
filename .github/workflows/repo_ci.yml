@@ -37,12 +37,14 @@ jobs:
           rosdep install --from-paths src --ignore-src -r -y
 
       - name: Build workspace
+        shell: bash
         run: |
           source /opt/ros/humble/setup.bash
           colcon build
-          source .install/setup.bash
+          source install/setup.bash
 
       - name: Run tests
+        shell: bash
         run: |
           source /opt/ros/humble/setup.bash
           source install/setup.bash
@@ -51,10 +53,11 @@ jobs:
           colcon test-result --verbose
 
       - name: Run linting
+        shell: bash
         run: |
           chmod +x run_linting.sh
           source /opt/ros/humble/setup.bash
-          source .install/setup.bash
+          source install/setup.bash
           ./run_linting.sh
       
       
