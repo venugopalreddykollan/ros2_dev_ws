@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #install git and remove cache
 RUN apt-get update && apt-get install -y \
     git \
-    python3-pip \   
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set workspace directory
@@ -16,7 +16,7 @@ RUN mkdir -p /ros2_dev_ws
 WORKDIR /ros2_dev_ws
 
 #cloning the git repositories
-RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git .
 
 
 # Update rosdep and install dependencies
