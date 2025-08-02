@@ -1,0 +1,42 @@
+# Dockerfile for ROS2 Trajectory Planning Workspace
+FROM ros:humble
+
+# Set environment variables
+ENV ROS_DISTRO=humble
+ENV DEBIAN_FRONTEND=noninteractive
+
+#install git and remove cache
+RUN apt-get update && apt-get install -y \
+    git \
+    python3-pip \   
+    && rm -rf /var/lib/apt/lists/*
+
+# Set workspace directory
+RUN mkdir -p /ros2_dev_ws
+WORKDIR /ros2_dev_ws
+
+#cloning the git repositories
+RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+
+
+# Update rosdep and install dependencies
+RUN rosdep init || true && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y
+
+# Build the packages custom_interface and ros2_traj_pkg
+RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    colcon build --packages-select custom_interface && \
+    source install/setup.bash && \
+    colcon build --packages-select ros2_traj_pkg"
+
+# Source workspace in bashrc for convenience
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
+    echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
+
+# Copy and set up entrypoint script
+COPY ros_entrypoint.sh /
+RUN chmod +x /ros_entrypoint.sh
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]
