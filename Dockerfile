@@ -18,6 +18,9 @@ WORKDIR /ros2_dev_ws
 #cloning the git repositories
 RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git .
 
+#Optionally list the contents to verify the clone
+# This can help in debugging if the clone fails or if the directory structure is not as expected
+RUN ls -la && ls -la src
 
 # Update rosdep and install dependencies
 RUN rosdep init || true && \
