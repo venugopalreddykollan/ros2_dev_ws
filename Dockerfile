@@ -32,11 +32,6 @@ RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
 
 # Source workspace in bashrc for convenience
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
-    echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
+    echo "source /ros2_dev_ws/install/setup.bash" >> /root/.bashrc
 
-# Copy and set up entrypoint script
-COPY ros_entrypoint.sh /
-RUN chmod +x /ros_entrypoint.sh
-
-ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
