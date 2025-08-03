@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Velocity Filter Node for ROS2.
 
@@ -98,32 +99,34 @@ class VelocityFilterNode(Node):
             durability=DurabilityPolicy.VOLATILE,
             depth=5
         )
-
-        # Publishers for velocity vectors
+        # Vector Publishers (for ROS ecosystem)
         self.raw_velocity_pub = self.create_publisher(
             Vector3Stamped, "raw_velocity", vel_qos
         )
         self.filtered_velocity_pub = self.create_publisher(
             Vector3Stamped, "filtered_velocity", vel_qos
         )
-
-        # Publishers for speed magnitudes
-        self.raw_speed_pub = self.create_publisher(
-            Float64, "raw_speed", vel_qos
-        )
-        self.filtered_speed_pub = self.create_publisher(
-            Float64, "filtered_speed", vel_qos
-        )
         self.velocity_comparison_pub = self.create_publisher(
             Vector3Stamped, "velocity_comparison", vel_qos
         )
-        self.speed_difference_pub = self.create_publisher(
-            Float64, "speed_difference", vel_qos
-        )
-        self.filter_effectiveness_pub = self.create_publisher(
-            Float64, "filter_effectiveness", vel_qos
-        )
 
+        # Scalar Publishers for PlotJuggler
+        # Raw velocity components
+        self.raw_velocity_x_pub = self.create_publisher(Float64, "raw_velocity_x", vel_qos)
+        self.raw_velocity_y_pub = self.create_publisher(Float64, "raw_velocity_y", vel_qos)
+        self.raw_velocity_z_pub = self.create_publisher(Float64, "raw_velocity_z", vel_qos)
+        
+        # Filtered velocity components
+        self.filtered_velocity_x_pub = self.create_publisher(Float64, "filtered_velocity_x", vel_qos)
+        self.filtered_velocity_y_pub = self.create_publisher(Float64, "filtered_velocity_y", vel_qos)
+        self.filtered_velocity_z_pub = self.create_publisher(Float64, "filtered_velocity_z", vel_qos)
+
+        # Speed and analysis metrics
+        self.raw_speed_pub = self.create_publisher(Float64, "raw_speed", vel_qos)
+        self.filtered_speed_pub = self.create_publisher(Float64, "filtered_speed", vel_qos)
+        self.speed_difference_pub = self.create_publisher(Float64, "speed_difference", vel_qos)
+        self.filter_effectiveness_pub = self.create_publisher(Float64, "filter_effectiveness", vel_qos)
+        
         # Subscriber for pose data
         self.pose_sub = self.create_subscription(
             PoseStamped, "current_pose", self.pose_callback, vel_qos
@@ -208,25 +211,21 @@ class VelocityFilterNode(Node):
         # Create timestamp
         stamp = timestamp.to_msg()
 
-        # Publish raw velocity vector
+        # Publish Vector Messages for ROS ecosystem
         raw_vel_msg = Vector3Stamped()
         raw_vel_msg.header.stamp = stamp
         raw_vel_msg.header.frame_id = "map"
         raw_vel_msg.vector.x, raw_vel_msg.vector.y, raw_vel_msg.vector.z = raw_vel
         self.raw_velocity_pub.publish(raw_vel_msg)
 
-        # Publish filtered velocity vector
+        # Filtered velocity vector
         filt_vel_msg = Vector3Stamped()
         filt_vel_msg.header.stamp = stamp
         filt_vel_msg.header.frame_id = "map"
         filt_vel_msg.vector.x, filt_vel_msg.vector.y, filt_vel_msg.vector.z = filt_vel
         self.filtered_velocity_pub.publish(filt_vel_msg)
 
-        # Publish speed magnitudes
-        self.raw_speed_pub.publish(Float64(data=raw_speed))
-        self.filtered_speed_pub.publish(Float64(data=filt_speed))
-
-        # Publish velocity comparison (difference vector)
+        # Velocity comparison difference vector
         vel_diff = raw_vel - filt_vel
         comparison_msg = Vector3Stamped()
         comparison_msg.header.stamp = stamp
@@ -234,7 +233,22 @@ class VelocityFilterNode(Node):
         comparison_msg.vector.x, comparison_msg.vector.y, comparison_msg.vector.z = vel_diff
         self.velocity_comparison_pub.publish(comparison_msg)
 
-        # Publish speed difference and filter effectiveness
+        # Publish Scalar Messages for PlotJuggler
+        # Raw velocity components
+        self.raw_velocity_x_pub.publish(Float64(data=float(raw_vel[0])))
+        self.raw_velocity_y_pub.publish(Float64(data=float(raw_vel[1])))
+        self.raw_velocity_z_pub.publish(Float64(data=float(raw_vel[2])))
+        
+        # Filtered velocity components  
+        self.filtered_velocity_x_pub.publish(Float64(data=float(filt_vel[0])))
+        self.filtered_velocity_y_pub.publish(Float64(data=float(filt_vel[1])))
+        self.filtered_velocity_z_pub.publish(Float64(data=float(filt_vel[2])))
+
+        # Speed magnitudes
+        self.raw_speed_pub.publish(Float64(data=raw_speed))
+        self.filtered_speed_pub.publish(Float64(data=filt_speed))
+
+        # Analysis metrics
         speed_diff = abs(raw_speed - filt_speed)
         self.speed_difference_pub.publish(Float64(data=speed_diff))
 
@@ -243,7 +257,6 @@ class VelocityFilterNode(Node):
             min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
         )
         self.filter_effectiveness_pub.publish(Float64(data=effectiveness))
-
 
 def main(args=None) -> None:
     """Initialize and run the velocity filter node."""
