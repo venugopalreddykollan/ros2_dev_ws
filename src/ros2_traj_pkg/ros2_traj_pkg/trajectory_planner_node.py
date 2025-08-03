@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Trajectory Planner Node for ROS2.
 
@@ -116,6 +117,142 @@ class TrajectoryPlanner(Node):
         except Exception as e:
             raise ValueError(f"Failed to extract {name} position: {e}")
 
+    def _validate_duration(self, duration: float) -> None:
+        """
+        Validate trajectory duration parameter.
+
+        Args
+        ----
+        duration: float
+            Requested trajectory duration in seconds
+
+        Raises
+        ------
+        ValueError
+            If duration is invalid
+        """
+        if duration <= 0.0:
+            raise ValueError(f"Duration must be positive, got: {duration}")
+        if duration > 300.0:  # 5 minutes max - adjust as needed
+            raise ValueError(f"Duration too large (max 300s), got: {duration}")
+
+    def _check_distance_and_warn_limits(self, start_pos: np.ndarray, goal_pos: np.ndarray,
+                                        duration: float) -> float:
+        """
+        Calculate distance and validate against velocity/acceleration limits.
+
+        Args
+        ----
+        start_pos: np.ndarray
+            Start position [x, y, z]
+        goal_pos: np.ndarray
+            Goal position [x, y, z]
+        duration: float
+            Trajectory duration in seconds
+
+        Returns
+        -------
+        float
+            Distance between start and goal positions
+
+        Raises
+        ------
+        RuntimeError
+            If positions are nearly identical (special case for plan_callback)
+
+        """
+        distance = np.linalg.norm(goal_pos - start_pos)
+        if distance < 1e-6:
+            # This is a special case that should be handled by the caller
+            raise RuntimeError("No movement required - positions are identical")
+
+        # Estimate maximum velocity and acceleration from 3rd order polynomial
+        # For s(t) = 3t² - 2t³, max velocity occurs at t = 0.5
+        # Max velocity = 1.5 * distance / duration
+        estimated_max_vel = 1.5 * distance / duration
+
+        # Max acceleration occurs at t = 0 and t = 1
+        # Max acceleration = 6 * distance / duration²
+        estimated_max_acc = 6.0 * distance / (duration * duration)
+
+        # Validate against limits
+        if estimated_max_vel > self.max_vel:
+            self.get_logger().warn(
+                f"Estimated max velocity ({estimated_max_vel:.3f} m/s) "
+                f"exceeds limit ({self.max_vel} m/s)"
+            )
+
+        if estimated_max_acc > self.max_acc:
+            self.get_logger().warn(
+                f"Estimated max acceleration ({estimated_max_acc:.3f} m/s²) "
+                f"exceeds limit ({self.max_acc} m/s²)"
+            )
+
+        self.get_logger().info(
+            f"Planning trajectory: distance={distance:.3f}m, duration={duration}s, "
+            f"max_vel={estimated_max_vel:.3f}m/s, max_acc={estimated_max_acc:.3f}m/s²"
+        )
+
+        return distance
+
+    def _generate_cubic_trajectory(self, start_pos: np.ndarray, goal_pos: np.ndarray,
+                                   duration: float) -> list:
+        """
+        Generate trajectory using 3rd order polynomial interpolation.
+
+        Args
+        ----
+        start_pos: np.ndarray
+            Start position [x, y, z]
+        goal_pos: np.ndarray
+            Goal position [x, y, z]
+        duration: float
+            Trajectory duration in seconds
+
+        Returns
+        -------
+        list
+            List of trajectory positions as [x, y, z] lists
+
+        """
+        total_steps = int(duration * self.freq)
+        trajectory = []
+
+        for i in range(total_steps):
+            t = i / (total_steps - 1) if total_steps > 1 else 0.0
+
+            # 3rd order polynomial: s(t) = 3*t^2 - 2*t^3
+            # This ensures smooth start and stop with continuous acceleration
+            s = 3 * t**2 - 2 * t**3
+
+            # Interpolate position
+            pos = start_pos + s * (goal_pos - start_pos)
+            trajectory.append(pos.tolist())
+
+        self.get_logger().info(
+            f"Trajectory generated with {len(trajectory)} poses. Starting publishing..."
+        )
+        return trajectory
+
+    def _start_trajectory_publishing(self, trajectory: list) -> None:
+        """
+        Initialize trajectory publishing with timer.
+
+        Args:
+        ----
+        trajectory: list
+            Generated trajectory points
+
+        """
+        self.trajectory = trajectory
+        self.current_index = 0
+
+        # Cancel any existing timer before starting a new one
+        if self.timer is not None:
+            self.timer.cancel()
+
+        self.timer = self.create_timer(1.0 / self.freq, self.publish_timer_callback)
+
     def plan_callback(self, request: PlanTrajectory.Request,
                       response: PlanTrajectory.Response) -> PlanTrajectory.Response:
         """
@@ -124,91 +261,34 @@ class TrajectoryPlanner(Node):
         Returns immediately after trajectory generation; publishing happens asynchronously.
         """
         try:
-            # Validate and extract positions with proper error handling
+            # Validate and extract positions
             start_pos = self._validate_position(request.start.position, "start")
             goal_pos = self._validate_position(request.goal.position, "goal")
+
             # Validate duration
             duration = float(request.duration)
-            if duration <= 0.0:
-                raise ValueError(f"Duration must be positive, got: {duration}")
-            if duration > 300.0:  # 5 minutes max - adjust as needed
-                raise ValueError(f"Duration too large (max 300s), got: {duration}")
+            self._validate_duration(duration)
 
-            # Validate that start and goal are different
-            distance = np.linalg.norm(goal_pos - start_pos)
-            if distance < 1e-6:
-                self.get_logger().warn("Start and goal positions are nearly identical")
-                response.success = True
-                response.message = "No movement required - positions are identical"
-                return response
+            # Check distance and validate against limits
+            try:
+                self._check_distance_and_warn_limits(start_pos, goal_pos, duration)
+            except RuntimeError as e:
+                # Handle identical positions case
+                if "identical" in str(e):
+                    self.get_logger().warn("Start and goal positions are nearly identical")
+                    response.success = True
+                    response.message = "No movement required - positions are identical"
+                    return response
+                raise  # Re-raise if it's a different RuntimeError
 
-            # Purpose: Predicts maximum velocity from 3rd-order polynomial
-            # Based on mathematical analysis of cubic trajectory
-            # Warns if trajectory will exceed velocity limits
-            # Estimate maximum velocity and acceleration from 3rd order polynomial
-            # For s(t) = 3t² - 2t³, max velocity occurs at t = 0.5
-            # Max velocity = 1.5 * distance / duration
-            estimated_max_vel = 1.5 * distance / duration
+            # Generate trajectory
+            trajectory = self._generate_cubic_trajectory(start_pos, goal_pos, duration)
 
-            # Warns if trajectory will exceed acceleration limits
-            # Max acceleration occurs at t = 0 and t = 1
-            # Max acceleration = 6 * distance / duration²
-            estimated_max_acc = 6.0 * distance / (duration * duration)
-
-            # Validate against limits
-            if estimated_max_vel > self.max_vel:
-                self.get_logger().warn(
-                    f"Estimated max velocity ({estimated_max_vel:.3f} m/s) "
-                    f"exceeds limit ({self.max_vel} m/s)"
-                )
-
-            if estimated_max_acc > self.max_acc:
-                self.get_logger().warn(
-                    f"Estimated max acceleration ({estimated_max_acc:.3f} m/s²) "
-                    f"exceeds limit ({self.max_acc} m/s²)"
-                )
-
-            self.get_logger().info(
-                f"Planning trajectory: distance={distance:.3f}m, duration={duration}s, "
-                f"max_vel={estimated_max_vel:.3f}m/s, max_acc={estimated_max_acc:.3f}m/s²"
-            )
-            # Generate trajectory using 3rd order polynomial interpolation
-            # This ensures smooth start and stop with continuous acceleration
-            # s(t) = 3*t^2 - 2*t^3 (this ensures smooth start and stop)
-            # Generate 3rd order polynomial trajectory with continuous acceleration
-            total_steps = int(duration * self.freq)
-            trajectory = []
-
-            for i in range(total_steps):
-                t = i / (total_steps - 1) if total_steps > 1 else 0.0
-                t_norm = t  # normalized time from 0 to 1
-
-                # 3rd order polynomial coefficients for continuous acceleration
-                # s(t) = 3*t^2 - 2*t^3 (this ensures smooth start and stop)
-                s = 3 * t_norm**2 - 2 * t_norm**3
-
-                # Interpolate position
-                pos = start_pos + s * (goal_pos - start_pos)
-                trajectory.append(pos.tolist())
-
-            self.get_logger().info(
-                f"Trajectory generated with {len(trajectory)} poses. Starting publishing..."
-            )
-
-            # Store trajectory and start timer-based publishing
-            self.trajectory = trajectory
-            self.current_index = 0
-
-            # Cancel any existing timer before starting a new one
-            if self.timer is not None:
-                self.timer.cancel()
-
-            self.timer = self.create_timer(1.0 / self.freq, self.publish_timer_callback)
+            # Start publishing
+            self._start_trajectory_publishing(trajectory)
 
             response.success = True
-            response.message = (
-                "Trajectory successfully generated and publishing started."
-            )
+            response.message = "Trajectory successfully generated and publishing started."
             return response
 
         except ValueError as e:
