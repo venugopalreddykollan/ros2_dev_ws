@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Test integration and communication properties of trajectory nodes."""
+
 import time
 import unittest
 
