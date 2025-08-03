@@ -97,7 +97,7 @@ class VelocityFilterNode(Node):
         vel_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
-            depth=5
+            depth=5,
         )
         # Vector Publishers (for ROS ecosystem)
         self.raw_velocity_pub = self.create_publisher(
@@ -112,21 +112,39 @@ class VelocityFilterNode(Node):
 
         # Scalar Publishers for PlotJuggler
         # Raw velocity components
-        self.raw_velocity_x_pub = self.create_publisher(Float64, "raw_velocity_x", vel_qos)
-        self.raw_velocity_y_pub = self.create_publisher(Float64, "raw_velocity_y", vel_qos)
-        self.raw_velocity_z_pub = self.create_publisher(Float64, "raw_velocity_z", vel_qos)
-        
+        self.raw_velocity_x_pub = self.create_publisher(
+            Float64, "raw_velocity_x", vel_qos
+        )
+        self.raw_velocity_y_pub = self.create_publisher(
+            Float64, "raw_velocity_y", vel_qos
+        )
+        self.raw_velocity_z_pub = self.create_publisher(
+            Float64, "raw_velocity_z", vel_qos
+        )
+
         # Filtered velocity components
-        self.filtered_velocity_x_pub = self.create_publisher(Float64, "filtered_velocity_x", vel_qos)
-        self.filtered_velocity_y_pub = self.create_publisher(Float64, "filtered_velocity_y", vel_qos)
-        self.filtered_velocity_z_pub = self.create_publisher(Float64, "filtered_velocity_z", vel_qos)
+        self.filtered_velocity_x_pub = self.create_publisher(
+            Float64, "filtered_velocity_x", vel_qos
+        )
+        self.filtered_velocity_y_pub = self.create_publisher(
+            Float64, "filtered_velocity_y", vel_qos
+        )
+        self.filtered_velocity_z_pub = self.create_publisher(
+            Float64, "filtered_velocity_z", vel_qos
+        )
 
         # Speed and analysis metrics
         self.raw_speed_pub = self.create_publisher(Float64, "raw_speed", vel_qos)
-        self.filtered_speed_pub = self.create_publisher(Float64, "filtered_speed", vel_qos)
-        self.speed_difference_pub = self.create_publisher(Float64, "speed_difference", vel_qos)
-        self.filter_effectiveness_pub = self.create_publisher(Float64, "filter_effectiveness", vel_qos)
-        
+        self.filtered_speed_pub = self.create_publisher(
+            Float64, "filtered_speed", vel_qos
+        )
+        self.speed_difference_pub = self.create_publisher(
+            Float64, "speed_difference", vel_qos
+        )
+        self.filter_effectiveness_pub = self.create_publisher(
+            Float64, "filter_effectiveness", vel_qos
+        )
+
         # Subscriber for pose data
         self.pose_sub = self.create_subscription(
             PoseStamped, "current_pose", self.pose_callback, vel_qos
@@ -136,9 +154,9 @@ class VelocityFilterNode(Node):
         """Process incoming pose data and compute filtered velocities."""
         try:
             current_time = self.get_clock().now()
-            current_pose = np.array([
-                msg.pose.position.x, msg.pose.position.y, msg.pose.position.z
-            ])
+            current_pose = np.array(
+                [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
+            )
 
             # Validate pose data
             if not np.all(np.isfinite(current_pose)):
@@ -160,7 +178,8 @@ class VelocityFilterNode(Node):
         try:
             # Get the last two poses and timestamps
             (prev_pose, prev_time), (curr_pose, curr_time) = (
-                self.pose_history[-2], self.pose_history[-1]
+                self.pose_history[-2],
+                self.pose_history[-1],
             )
 
             # Calculate time difference in seconds
@@ -181,8 +200,7 @@ class VelocityFilterNode(Node):
 
             # Apply low-pass filter: y[n] = α*x[n] + (1-α)*y[n-1]
             self.filtered_velocity = (
-                self.alpha * raw_velocity
-                + (1 - self.alpha) * self.filtered_velocity
+                self.alpha * raw_velocity + (1 - self.alpha) * self.filtered_velocity
             )
             filtered_speed = np.linalg.norm(self.filtered_velocity)
 
@@ -197,16 +215,24 @@ class VelocityFilterNode(Node):
                 )
 
             self._publish_velocity_data(
-                raw_velocity, self.filtered_velocity, curr_time,
-                raw_speed, filtered_speed
+                raw_velocity,
+                self.filtered_velocity,
+                curr_time,
+                raw_speed,
+                filtered_speed,
             )
 
         except Exception as e:
             self.get_logger().error(f"Error computing velocity: {e}")
 
-    def _publish_velocity_data(self, raw_vel: np.ndarray, filt_vel: np.ndarray,
-                               timestamp, raw_speed: float,
-                               filt_speed: float) -> None:
+    def _publish_velocity_data(
+        self,
+        raw_vel: np.ndarray,
+        filt_vel: np.ndarray,
+        timestamp,
+        raw_speed: float,
+        filt_speed: float,
+    ) -> None:
         """Publish all velocity-related data and analysis metrics."""
         # Create timestamp
         stamp = timestamp.to_msg()
@@ -230,7 +256,9 @@ class VelocityFilterNode(Node):
         comparison_msg = Vector3Stamped()
         comparison_msg.header.stamp = stamp
         comparison_msg.header.frame_id = "map"
-        comparison_msg.vector.x, comparison_msg.vector.y, comparison_msg.vector.z = vel_diff
+        comparison_msg.vector.x, comparison_msg.vector.y, comparison_msg.vector.z = (
+            vel_diff
+        )
         self.velocity_comparison_pub.publish(comparison_msg)
 
         # Publish Scalar Messages for PlotJuggler
@@ -238,8 +266,8 @@ class VelocityFilterNode(Node):
         self.raw_velocity_x_pub.publish(Float64(data=float(raw_vel[0])))
         self.raw_velocity_y_pub.publish(Float64(data=float(raw_vel[1])))
         self.raw_velocity_z_pub.publish(Float64(data=float(raw_vel[2])))
-        
-        # Filtered velocity components  
+
+        # Filtered velocity components
         self.filtered_velocity_x_pub.publish(Float64(data=float(filt_vel[0])))
         self.filtered_velocity_y_pub.publish(Float64(data=float(filt_vel[1])))
         self.filtered_velocity_z_pub.publish(Float64(data=float(filt_vel[2])))
@@ -253,10 +281,9 @@ class VelocityFilterNode(Node):
         self.speed_difference_pub.publish(Float64(data=speed_diff))
 
         # Calculate filter effectiveness (0 = no filtering, 1 = maximum filtering)
-        effectiveness = (
-            min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
-        )
+        effectiveness = min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
         self.filter_effectiveness_pub.publish(Float64(data=effectiveness))
+
 
 def main(args=None) -> None:
     """Initialize and run the velocity filter node."""

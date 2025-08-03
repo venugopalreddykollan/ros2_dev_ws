@@ -61,7 +61,7 @@ class TrajectoryPlanner(Node):
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
-            depth=10
+            depth=10,
         )
         self.pose_pub = self.create_publisher(PoseStamped, "current_pose", qos_profile)
 
@@ -109,7 +109,9 @@ class TrajectoryPlanner(Node):
             # Check for reasonable bounds (adjust as needed for your application)
             max_coord = 1000.0  # 1km limit - adjust as needed
             if np.any(np.abs(pos) > max_coord):
-                raise ValueError(f"{name} position exceeds bounds (±{max_coord}m): {pos}")
+                raise ValueError(
+                    f"{name} position exceeds bounds (±{max_coord}m): {pos}"
+                )
             return pos
 
         except AttributeError as e:
@@ -136,8 +138,9 @@ class TrajectoryPlanner(Node):
         if duration > 300.0:  # 5 minutes max - adjust as needed
             raise ValueError(f"Duration too large (max 300s), got: {duration}")
 
-    def _check_distance_and_warn_limits(self, start_pos: np.ndarray, goal_pos: np.ndarray,
-                                        duration: float) -> float:
+    def _check_distance_and_warn_limits(
+        self, start_pos: np.ndarray, goal_pos: np.ndarray, duration: float
+    ) -> float:
         """
         Calculate distance and validate against velocity/acceleration limits.
 
@@ -195,8 +198,9 @@ class TrajectoryPlanner(Node):
 
         return distance
 
-    def _generate_cubic_trajectory(self, start_pos: np.ndarray, goal_pos: np.ndarray,
-                                   duration: float) -> list:
+    def _generate_cubic_trajectory(
+        self, start_pos: np.ndarray, goal_pos: np.ndarray, duration: float
+    ) -> list:
         """
         Generate trajectory using 3rd order polynomial interpolation.
 
@@ -253,8 +257,9 @@ class TrajectoryPlanner(Node):
 
         self.timer = self.create_timer(1.0 / self.freq, self.publish_timer_callback)
 
-    def plan_callback(self, request: PlanTrajectory.Request,
-                      response: PlanTrajectory.Response) -> PlanTrajectory.Response:
+    def plan_callback(
+        self, request: PlanTrajectory.Request, response: PlanTrajectory.Response
+    ) -> PlanTrajectory.Response:
         """
         Service callback to plan trajectory from start to goal within duration.
 
@@ -275,7 +280,9 @@ class TrajectoryPlanner(Node):
             except RuntimeError as e:
                 # Handle identical positions case
                 if "identical" in str(e):
-                    self.get_logger().warn("Start and goal positions are nearly identical")
+                    self.get_logger().warn(
+                        "Start and goal positions are nearly identical"
+                    )
                     response.success = True
                     response.message = "No movement required - positions are identical"
                     return response
@@ -288,7 +295,9 @@ class TrajectoryPlanner(Node):
             self._start_trajectory_publishing(trajectory)
 
             response.success = True
-            response.message = "Trajectory successfully generated and publishing started."
+            response.message = (
+                "Trajectory successfully generated and publishing started."
+            )
             return response
 
         except ValueError as e:
