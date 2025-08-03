@@ -40,7 +40,7 @@ class TestTrajectoryPlannerNode(unittest.TestCase):
         self.node.destroy_node()
 
     def pose_callback(self, msg):
-        """Callback to collect published poses."""
+        """Collect published poses for testing."""
         self.received_poses.append(msg)
 
     def spin_node_for_duration(self, duration):
