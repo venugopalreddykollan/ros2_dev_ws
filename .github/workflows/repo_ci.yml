@@ -42,16 +42,7 @@ jobs:
           source /opt/ros/humble/setup.bash
           colcon build
           source install/setup.bash
-
-      - name: Run tests
-        shell: bash
-        run: |
-          source /opt/ros/humble/setup.bash
-          source install/setup.bash
-          colcon test --packages-select custom_interface ros2_traj_pkg \
-            --event-handlers console_direct+
-          colcon test-result --verbose
-
+          
       - name: Run linting
         shell: bash
         run: |

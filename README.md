@@ -1,277 +1,279 @@
-# ROS2 Velocity Filtering & Trajectory Planning Workspace
+# CONTENTS
+  - **Overview**
+  - **Features**
+  - **Repository Structure**
+  - **Packages Overview**
+    - custom_interface
+    - ros2_traj_pkg
+      - Nodes
+      - Topics
+  - **Installation**
+    - Prerequisites
+    - Standard Installation
+    - Requirement
+    - Docker Installation
+  - **Usage**
+    - Running node with just the repo cloning
+      - Clone and Build
+      - Running the nodes
+    - Docker
+    - Code Quality
+      - Install Development      Dependencies
+      - Run workspace level Linting
+    - Run tests
+  - **Troubleshooting**
+  - **License**
+  - **Support**
+
+
+## 1.Overview
 
 A complete ROS2 workspace featuring advanced trajectory planning with 3rd order polynomial generation, real-time velocity filtering, and comprehensive visualization capabilities.
 
-## 🎯 Overview
 
-This workspace provides a robust ROS2 system for trajectory planning and velocity analysis, featuring:
-- **3rd Order Polynomial Trajectory Generation** with smooth acceleration profiles
+## 2.Features:
+-   **3rd Order Polynomial Trajectory Generation** with smooth acceleration profiles
 - **Real-time Velocity Filtering** using low-pass RC filters
-- **Multiple Visualization Options** including rqt_plot and terminal-based monitoring
+- **Visualization** using plot_juggler
 - **Comprehensive Parameter Management** via YAML configuration
-- **Professional Development Tools** with testing and quality assurance
+- **Professional Development Tools** with testing
 
-## Repository Structure
+## 3.Repository Structure
 
 This repository follows standard ROS2 workspace conventions:
 
 ```
-ros2_dev_ws/                    # Workspace root
-├── src/                        # Source packages directory
-│   ├── custom_interface/       # Custom service definitions package
-│   └── ros2_traj_pkg/         # Main trajectory planning package
-├── build/                      # Build artifacts (excluded from git)
-├── install/                    # Install artifacts (excluded from git)
-├── log/                        # Log files (excluded from git)
-├── .gitignore                  # Git ignore rules
-└── README.md                   # This file
+ros2_dev_ws
+  |-----src
+  |      |---custom_interface
+  |      |     |---srv
+  |      |     |    | ----- PlanTrajectory.srv
+  |      |     |---CMakeLists.txt
+  |      |     |---package.xml
+  |      |---ros2_traj_pkg
+  |      |     |---config
+  |      |     |    |---trajectory_params.yaml
+  |      |     |    |---velocity_filter_params.yaml
+  |      |     |---launch
+  |      |     |    |---complete_system_launch.py
+  |      |     |    |---trajectory_launch.py
+  |      |     |    |---velocity_filter_launch.py
+  |      |     |---resource
+  |      |     |    |---ros2_traj_pkg
+  |      |     |---ros2_traj_pkg
+  |      |     |    |---__init__.py
+  |      |     |    |---filtervelocity_subscriber_node.py
+  |      |     |    |---trajectory_planner_node.py
+  |      |     |---test
+  |      |          |---test_copyright.py
+  |      |          |---test_flake8.py
+  |      |          |---test_nodes_comms_and_props.py
+  |      |          |---test_peps257.py
+  |      |---.pre-commit-config.yaml
+  |      |---LICENSE
+  |      |---package.xml
+  |      |---setup.cfg
+  |      |---setup.py
+  |---.bandit
+  |---.flake8
+  |---.gitignore
+  |---.pylintrc
+  |---Dockerfile
+  |---README.md
+  |---pyproject.toml
+  |---requirements-dev.txt
+  |---run_linting.sh
 ```
 
-## Packages Overview
+## 4.Packages Overview
 
 ### 1. custom_interface
-- **Type**: Interface package (C++)
-- **Purpose**: Defines custom service interfaces for trajectory planning
+-  Defines custom service interfaces for trajectory planning
 - **Contains**: 
   - `srv/PlanTrajectory.srv` - Service definition for trajectory planning requests
 
 ### 2. ros2_traj_pkg  
-- **Type**: Python package
-- **Purpose**: Advanced trajectory planning and velocity filtering
+- Advanced trajectory planning and velocity filtering
 - **Contains**:
-  - **Trajectory Planner Node**: 3rd order polynomial generation with parameter validation
-  - **Velocity Filter Node**: Low-pass filtering with magnitude publishing for visualization
   - **Launch Files**: Complete system deployment with parameter loading
   - **Configuration Files**: YAML-based parameter management
-  - **Visualization Tools**: Terminal monitor and rqt_plot support
+  - **Trajectory Planner Node**: 3rd order polynomial generation with parameter validation
+  - **Velocity Filter Node**: Low-pass filtering with magnitude publishing for visualization
+- **Nodes**
+    - trajectory_planner_node- Trajectory generation and publishing
+    - filtervelocity_subscriber_node - Velocity computation and filtering and also visualisation using plot juggler
+- **Topics**
+  - `/current_pose` (geometry_msgs/PoseStamped) - Published trajectory poses
+  - `/raw_velocity` (geometry_msgs/Vector3) - Computed raw velocity  
+  - `/filtered_velocity` (geometry_msgs/Vector3) - Low-pass filtered velocity
 
-## Quick Start
+## 5. Installation
+  ### Prerequisites--
+  - **Operating System Requirements:**
+      - Ubuntu 22.04 (Recommended)
+      - For Windows Users
+        - Check if WSL2 is enabled
+        - Install Ubuntu 22.04 LTS app in Microsoft
+  - **ROS2 Installation:**
+    - follow this steps for installing ROS2 Humble [https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html]
+  - **Requirements**
+    - Install colcon
+      ```bash
+      # Install essential tools
+      sudo apt update
+      sudo apt upgrade
+      sudo apt install ros-humble-desktop   python3-colcon-common-extensions
 
-### Prerequisites
-- ROS2 Humble
-- Python 3.8+
-- colcon build tools
+      #Initialize and update rosdep
+      sudo rosdep init
+      rosdep update
 
-```bash
-sudo apt update
-sudo apt install ros-humble-desktop python3-colcon-common-extensions
-```
+      # If the above commands does not work it means rosdep is not installed
+      sudo apt update
+      sudo apt install python3-rosdep
+      ```
+    - **To run the Dockerfile make sure docker is Docker**
+ 
 
-### Clone and Build
+## 6.Usage
+   ### Running nodes with repo cloning
+   - Clone and Build
+      ```bash
+      # Sourcing the ros humble
+      source /opt/ros/humble/setup.bash
 
-```bash
-# Clone the workspace
-git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
-cd ros2_dev_ws
+      # Clone the workspace
+      git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+      cd ros2_dev_ws
 
-# Install dependencies
-rosdep update
-rosdep install --from-paths src --ignore-src -r -y
+      # Install dependencies
+      rosdep install --from-paths src --ignore-src -r -y
 
-# Install development dependencies (for code quality tools)
-pip3 install -r requirements-dev.txt
+      # Build the workspace
+      colcon build --symlink-install
+      # Sourcing the Environment
+      source install/setup.bash
+      ```
+  - Launching the nodes
+    - To check the functionalities of the Nodes run the following commands in the bash terminal
+      ```bash
+      ros2 launch ros2_traj_pkg complete_system_launch.py
+      ```
+    #### SERVICE
+    - Open a new terminal and run the below commands to call the service
+      ```bash
+      # Source the environment
+      source install/setup.bash
 
-# Build the workspace (interface package first)
-colcon build --packages-select custom_interface
-colcon build --packages-select ros2_traj_pkg
+      # Call the service
+      ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory "{
+        start: {
+          position: {x: 0.0, y: 0.0, z: 0.0},
+          orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+        },
+        goal: {
+          position: {x: 5.0, y: 3.0, z: 2.0}, 
+          orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+        },
+        duration: 10.0
+      }"
+      ```
+    #### Pose Publishing
+    - Open another terminal to check for the functionalities
+      ```bash
+      # Source the environment
+      source install/setup.bash
 
-# Source the workspace
-source install/setup.bash
-```
+      # To track the nodes
+      ros2 node list
 
-### Quick Start Commands
+      # Return the list of all topics
+      ros2 topic list
 
-```bash
-# Build and run system
-colcon build && source install/setup.bash
-ros2 launch ros2_traj_pkg complete_system_launch.py
+      # To check the published poses
+      ros2 topic echo /current_pose
+      ```
+    #### Velocity Computation
+    - Open another terminal to check for computed velocities and filtered velocities
+      ```bash
+      # Source the environment
+      source install/setup.bash
 
-# Run code quality checks
-./run_linting.sh
+      # To check the velocities published on a seperate topic
+      ros2 topic echo /raw_velocity
 
-# Auto-format code
-black src/ && isort src/
-```
+      # To check the filtered velocities published
+      ros2 topic echo /filtered_velocity 
+      ```
 
-### Launch the System
+  ### Build and Run Docker
+  - Ensure WSL2 integration is enabled
+  - Make sure that Docker Desktop is running 
 
-```bash
-# Option 1: Launch complete system
-ros2 launch ros2_traj_pkg complete_system_launch.py
+    ```bash
+    # Clone the repository
+    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+    cd ros2_dev_ws
 
-# Option 2: Launch individual components
-ros2 launch ros2_traj_pkg trajectory_launch.py      # Terminal 1
-ros2 launch ros2_traj_pkg velocity_filter_launch.py # Terminal 2
-```
+    # Build Docker image
+    docker build -t ros2_dev_ws .
 
-## Testing the Trajectory Planning
+    # To verify the image is build succesfully
+    docker image
 
-```bash
-# Test the trajectory planning service
-ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory "{
-  start: {
-    position: {x: 0.0, y: 0.0, z: 0.0},
-    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  },
-  goal: {
-    position: {x: 5.0, y: 3.0, z: 2.0}, 
-    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  },
-  duration: 10.0
-}"
+    # Run the container
+    docker run -it ros2_dev_ws
+    ```
 
-# Monitor the published topics
-ros2 topic echo /current_pose          # Trajectory poses
-ros2 topic echo /velocity              # Computed velocities  
-ros2 topic echo /filtered_velocity     # Filtered velocities
-```
+  ### Code Quality
+  - The workspace includes comprehensive linting and formatting tools to maintain professional code standards across all packages.
+  - **Install Development Dependencies**
+    ```bash
+    # Install all linting and formatting tools
+    pip3 install -r requirements-dev.txt
+    ```
+  - **Run Workspace-Level Linting**
+    ```bash
+    # From workspace root
+    cd /home/ros2/ros2_dev_ws
 
-## Development
+    # Run comprehensive linting on all packages
+    ./run_linting.sh
 
-### Package Dependencies
-- `custom_interface` → No external ROS2 dependencies
-- `ros2_traj_pkg` → Depends on `custom_interface`
+    # If missing tools (mypy, etc.), install them by pressing 'y' when prompted
+    ```
+  ### Run Tests
+  - This 
+      ```bash
+      # Run all tests
+      colcon test
 
-### Build Order
-Always build `custom_interface` before `ros2_traj_pkg`:
-```bash
-colcon build --packages-select custom_interface
-colcon build --packages-select ros2_traj_pkg
-```
+      # Run specific test
+      colcon test --packages-select ros2_traj_pkg
 
-### Code Quality
+      # To check test results
+      colcon test-result --verbose
+      ```
 
-The workspace includes comprehensive linting and formatting tools to maintain professional code standards across all packages.
-
-#### Install Development Dependencies
-```bash
-# Install all linting and formatting tools
-pip3 install -r requirements-dev.txt
-```
-
-#### Run Workspace-Level Linting
-```bash
-# From workspace root
-cd /home/ros2/ros2_dev_ws
-
-# Run comprehensive linting on all packages
-./run_linting.sh
-
-# If missing tools (mypy, etc.), install them by pressing 'y' when prompted
-```
-
-#### What Gets Checked
-- **Black**: Code formatting and style consistency
-- **isort**: Import organization and sorting
-- **Flake8**: PEP8 compliance and style violations
-- **Pylint**: Advanced code analysis and quality scoring
-- **MyPy**: Type checking (excluding launch files)
-- **Bandit**: Security analysis (excluding test assertions)
-
-#### Automatic Fixes
-```bash
-# Auto-format code with Black
-black src/
-
-# Sort imports with isort
-isort src/
-
-# Or run both automatically during linting
-./run_linting.sh  # Will suggest these commands if issues found
-```
-```
-
-#### Individual Quality Checks
-```bash
-# Auto-format code (fixes import ordering and code style)
-black src/
-isort src/
-
-# Check style compliance
-flake8 src/
-
-# Advanced code analysis
-pylint src/
-
-# Type checking
-mypy src/ --ignore-missing-imports
-
-# Security analysis
-bandit -r src/
-```
-
-#### Run Tests
-```bash
-# Run tests
-colcon test --packages-select ros2_traj_pkg
-colcon test-result --verbose
-```
-
-## Features
-
-- ✅ 3rd order polynomial trajectory generation with continuous acceleration
-- ✅ Service-based trajectory planning interface  
-- ✅ Real-time velocity computation and low-pass filtering
-- ✅ Configurable parameters via YAML files
-- ✅ Comprehensive testing framework
-- ✅ Launch files for easy deployment
-- ✅ **Workspace-level code quality tools**:
-  - **Black**: Automatic code formatting
-  - **isort**: Import organization
-  - **Flake8**: Style checking and linting
-  - **Pylint**: Advanced code analysis
-  - **MyPy**: Type checking
-  - **Bandit**: Security analysis
-- ✅ Professional development workflow with automated quality checks
-
-## Architecture
-
-### Service Interface
-- **Service**: `/plan_trajectory` 
-- **Type**: `custom_interface/srv/PlanTrajectory`
-- **Input**: Start pose, goal pose, duration
-- **Output**: Success status and message
-
-### Topics
-- `/current_pose` (geometry_msgs/PoseStamped) - Published trajectory poses
-- `/velocity` (geometry_msgs/Vector3) - Computed velocity  
-- `/filtered_velocity` (geometry_msgs/Vector3) - Low-pass filtered velocity
-
-### Nodes
-1. **trajectory_planner_node** - Trajectory generation and publishing
-2. **filtervelocity_subscriber_node** - Velocity computation and filtering
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Build fails for ros2_traj_pkg**
-   ```bash
-   # Solution: Build custom_interface first
-   colcon build --packages-select custom_interface
-   source install/setup.bash
-   colcon build --packages-select ros2_traj_pkg
-   ```
-
-2. **Service not found**
-   ```bash
-   # Solution: Source the workspace
-   source install/setup.bash
-   ```
-
-3. **Import errors**
-   ```bash
-   # Solution: Check dependencies
-   rosdep install --from-paths src --ignore-src -r -y
-   ```
-
-## Contributing
-
-1. Follow ROS2 package conventions
-2. Maintain the existing code style
-3. Add tests for new functionality  
-4. Update documentation as needed
-
-## License
+## 7. Troubleshooting
+  ### Common Issues
+  - **Build fails for ros2_traj_pkg**
+      ```bash
+      # Solution: Build custom_interface first
+      colcon build --packages-select custom_interface
+      source install/setup.bash
+      colcon build --packages-select ros2_traj_pkg
+      ```
+  - **Service not found**
+    ```bash
+    # Solution: Source the workspace
+    source install/setup.bash
+    ```
+## 8. License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](src/ros2_traj_pkg/LICENSE) file for details.
+
+## 9. Support
+  ### For issues or feature requests
+  - Open an issue in my repository
+  - Provide detailed information regarding your problem
