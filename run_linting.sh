@@ -11,7 +11,7 @@ if [[ ! -d "src/ros2_traj_pkg" ]]; then
 fi
 
 # Find Python files in ros2_traj_pkg only
-PYTHON_FILES=$(find src/ros2_traj_pkg -name "*.py")
+PYTHON_FILES=$(find src/ros2_traj_pkg/ros2_traj_pkg -name "*.py")
 
 if [[ -z "$PYTHON_FILES" ]]; then
     echo "No Python files found in ros2_traj_pkg"
