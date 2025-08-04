@@ -39,11 +39,13 @@ RUN echo "Final Workspace Structure" && \
 
 
 # Update rosdep and install dependencies
-RUN apt-get update && \
+RUN bash -c "\
+    apt-get update && \
     rosdep update && \
-    . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    source /opt/ros/${ROS_DISTRO}/setup.bash && \
     rosdep install --from-paths src --ignore-src -r -y && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* \
+    "
 
 
 # Build the packages in correct dependency order
