@@ -31,10 +31,13 @@ class TestTrajectoryPlannerCore:
         v_end = 6 * 1.0 - 6 * 1.0**2
         assert abs(s_end - 1.0) < 1e-10 and abs(v_end) < 1e-10
 
-    @pytest.mark.parametrize("distance,duration,expected_vel,expected_acc", [
-        (10.0, 5.0, 3.0, 2.4),
-        (5.0, 1.0, 7.5, 30.0),
-    ])
+    @pytest.mark.parametrize(
+        "distance,duration,expected_vel,expected_acc",
+        [
+            (10.0, 5.0, 3.0, 2.4),
+            (5.0, 1.0, 7.5, 30.0),
+        ],
+    )
     def test_physics_estimation(self, distance, duration, expected_vel, expected_acc):
         """Test velocity and acceleration estimation formulas."""
         est_vel = 1.5 * distance / duration
@@ -45,17 +48,24 @@ class TestTrajectoryPlannerCore:
     @pytest.fixture
     def mock_planner(self):
         """Create mock trajectory planner."""
-        with patch('ros2_traj_pkg.trajectory_planner_node.Node.__init__'), \
-             patch.object(TrajectoryPlanner, 'declare_parameter'), \
-             patch.object(TrajectoryPlanner, 'get_parameter') as mock_param, \
-             patch.object(TrajectoryPlanner, 'create_publisher'), \
-             patch.object(TrajectoryPlanner, 'create_service'), \
-             patch.object(TrajectoryPlanner, 'get_logger'):
+        with patch("ros2_traj_pkg.trajectory_planner_node.Node.__init__"), patch.object(
+            TrajectoryPlanner, "declare_parameter"
+        ), patch.object(TrajectoryPlanner, "get_parameter") as mock_param, patch.object(
+            TrajectoryPlanner, "create_publisher"
+        ), patch.object(
+            TrajectoryPlanner, "create_service"
+        ), patch.object(
+            TrajectoryPlanner, "get_logger"
+        ):
 
-            mock_param.side_effect = lambda name: Mock(value={
-                'publisher_frequency': 50, 'max_velocity': 1.0,
-                'max_acceleration': 0.5, 'max_jerk': 2.0
-            }[name])
+            mock_param.side_effect = lambda name: Mock(
+                value={
+                    "publisher_frequency": 50,
+                    "max_velocity": 1.0,
+                    "max_acceleration": 0.5,
+                    "max_jerk": 2.0,
+                }[name]
+            )
             return TrajectoryPlanner()
 
     def test_position_validation(self, mock_planner):
@@ -67,16 +77,19 @@ class TestTrajectoryPlannerCore:
 
         # Invalid positions
         with pytest.raises(ValueError, match="Non-finite values"):
-            mock_planner._validate_position(Point(x=float('nan'), y=0.0, z=0.0), "test")
+            mock_planner._validate_position(Point(x=float("nan"), y=0.0, z=0.0), "test")
 
         with pytest.raises(ValueError, match="exceeds bounds"):
             mock_planner._validate_position(Point(x=2000.0, y=0.0, z=0.0), "test")
 
-    @pytest.mark.parametrize("duration,should_pass,error_text", [
-        (10.0, True, "successfully generated"),
-        (-5.0, False, "positive"),
-        (500.0, False, "too large"),
-    ])
+    @pytest.mark.parametrize(
+        "duration,should_pass,error_text",
+        [
+            (10.0, True, "successfully generated"),
+            (-5.0, False, "positive"),
+            (500.0, False, "too large"),
+        ],
+    )
     def test_service_validation(self, mock_planner, duration, should_pass, error_text):
         """Test service request validation for various durations."""
         request = Mock()
@@ -85,8 +98,9 @@ class TestTrajectoryPlannerCore:
         request.duration = duration
         response = Mock(success=None, message=None)
 
-        with patch.object(mock_planner, 'create_timer'), \
-             patch.object(mock_planner, 'get_logger'):
+        with patch.object(mock_planner, "create_timer"), patch.object(
+            mock_planner, "get_logger"
+        ):
             result = mock_planner.plan_callback(request, response)
 
         assert result.success == should_pass
@@ -130,21 +144,29 @@ class TestVelocityFilterCore:
     @pytest.fixture
     def mock_filter(self):
         """Create mock velocity filter."""
-        with patch('ros2_traj_pkg.filtervelocity_subscriber_node.Node.__init__'), \
-             patch.object(VelocityFilterNode, 'declare_parameter'), \
-             patch.object(VelocityFilterNode, 'get_parameter') as mock_param, \
-             patch.object(VelocityFilterNode, '_setup_communication'), \
-             patch.object(VelocityFilterNode, 'get_logger'):
+        with patch(
+            "ros2_traj_pkg.filtervelocity_subscriber_node.Node.__init__"
+        ), patch.object(VelocityFilterNode, "declare_parameter"), patch.object(
+            VelocityFilterNode, "get_parameter"
+        ) as mock_param, patch.object(
+            VelocityFilterNode, "_setup_communication"
+        ), patch.object(
+            VelocityFilterNode, "get_logger"
+        ):
 
-            mock_param.side_effect = lambda name: Mock(value={
-                'cutoff_frequency': 2.0, 'sample_rate': 50.0, 'velocity_bounds': 10.0
-            }[name])
+            mock_param.side_effect = lambda name: Mock(
+                value={
+                    "cutoff_frequency": 2.0,
+                    "sample_rate": 50.0,
+                    "velocity_bounds": 10.0,
+                }[name]
+            )
             return VelocityFilterNode()
 
     def test_filter_initialization(self, mock_filter):
         """Test filter initializes with valid parameters."""
-        assert hasattr(mock_filter, 'cutoff_freq')
-        assert hasattr(mock_filter, 'alpha')
+        assert hasattr(mock_filter, "cutoff_freq")
+        assert hasattr(mock_filter, "alpha")
         assert 0.0 < mock_filter.alpha < 1.0
 
 
@@ -180,17 +202,22 @@ class TestIntegrationScenarios:
         assert velocities[-1] < 0.5  # Ends slow
         assert max(velocities) > 0.1  # Has meaningful motion
 
-    @pytest.mark.parametrize("raw_speed,filtered_speed,expected_effectiveness", [
-        (1.0, 0.8, 0.2),   # 20% filtering
-        (2.0, 1.0, 0.5),   # 50% filtering
-        (0.0, 0.0, 0.0),   # No movement
-    ])
-    def test_filter_effectiveness_metric(self, raw_speed, filtered_speed, expected_effectiveness):
+    @pytest.mark.parametrize(
+        "raw_speed,filtered_speed,expected_effectiveness",
+        [
+            (1.0, 0.8, 0.2),  # 20% filtering
+            (2.0, 1.0, 0.5),  # 50% filtering
+            (0.0, 0.0, 0.0),  # No movement
+        ],
+    )
+    def test_filter_effectiveness_metric(
+        self, raw_speed, filtered_speed, expected_effectiveness
+    ):
         """Test filter effectiveness calculation."""
         speed_diff = abs(raw_speed - filtered_speed)
         effectiveness = min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
         assert abs(effectiveness - expected_effectiveness) < 1e-6
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
