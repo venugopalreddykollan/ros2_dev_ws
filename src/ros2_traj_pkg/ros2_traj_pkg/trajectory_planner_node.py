@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+# Uncomment all the lines below if you you wish not to use the generate_parameter_library
+# and comment the generated parameters
+# declare and get the parameters
 """
 Trajectory Planner Node for ROS2.
 
@@ -16,6 +18,9 @@ import numpy as np
 from geometry_msgs.msg import PoseStamped
 from custom_interface.srv import PlanTrajectory
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+# Import generated parameters
+from ros2_traj_pkg.trajectory_planner_parameters import trajectory_planner
 
 
 class TrajectoryPlanner(Node):
@@ -39,17 +44,15 @@ class TrajectoryPlanner(Node):
         """Initialize the trajectory planner node with parameters and services."""
         super().__init__("trajectory_planner")
 
-        # Declare parameters
-        self.declare_parameter("publisher_frequency", 50)
-        self.declare_parameter("max_velocity", 1.0)
-        self.declare_parameter("max_acceleration", 0.5)
-        self.declare_parameter("max_jerk", 2.0)
+        # Declare using generated parameters
+        self.param_listener = trajectory_planner.ParamListener(self)
+        self.params = self.param_listener.get_params()
 
-        # Get parameters
-        self.freq = self.get_parameter("publisher_frequency").value
-        self.max_vel = self.get_parameter("max_velocity").value
-        self.max_acc = self.get_parameter("max_acceleration").value
-        self.max_jerk = self.get_parameter("max_jerk").value
+        # Use parameters
+        self.freq = self.params.publisher_frequency
+        self.max_vel = self.params.max_velocity
+        self.max_acc = self.params.max_acceleration
+        self.max_jerk = self.params.max_jerk
 
         self.get_logger().info("Trajectory parameters loaded:")
         self.get_logger().info(f"Publisher frequency: {self.freq} Hz")
@@ -76,6 +79,21 @@ class TrajectoryPlanner(Node):
         self.timer = None
 
         self.get_logger().info("Trajectory Planner Node initialized.")
+
+    def _update_parameters_if_changed(self):
+        """Update parameters if they changed at runtime."""
+        if self.param_listener.is_old(self.params):
+            old_freq = self.freq
+            self.params = self.param_listener.get_params()
+            self.freq = self.params.publisher_frequency
+            self.max_vel = self.params.max_velocity
+            self.max_acc = self.params.max_acceleration
+            self.max_jerk = self.params.max_jerk
+
+            if abs(self.freq - old_freq) > 0.1:
+                self.get_logger().info(f" Publisher frequency updated: {self.freq} Hz")
+
+            self.get_logger().info("Parameters refreshed from YAML")
 
     def _validate_position(self, position, name: str) -> np.ndarray:
         """
@@ -265,7 +283,11 @@ class TrajectoryPlanner(Node):
 
         Returns immediately after trajectory generation; publishing happens asynchronously.
         """
+
         try:
+            # Update parameters if they changed
+            self._update_parameters_if_changed()
+
             # Validate and extract positions
             start_pos = self._validate_position(request.start.position, "start")
             goal_pos = self._validate_position(request.goal.position, "goal")

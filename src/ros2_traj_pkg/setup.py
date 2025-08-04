@@ -1,6 +1,19 @@
+# If you wish not to use the generate_parameter_library
+# Comment the import generate_parameter_module and module declarations
 from setuptools import find_packages, setup
+from generate_parameter_library_py.setup_helper import generate_parameter_module
 
 package_name = "ros2_traj_pkg"
+
+generate_parameter_module(
+    "trajectory_planner_parameters",  # python module name for parameter library
+    "config/publisher_params_manager.yaml", # path to input yaml file
+)
+
+generate_parameter_module(
+    "velocity_filter_parameters", # python module name for parameter library
+    "config/subscriber_params_manager.yaml", # path to input yaml file
+)
 
 setup(
     name=package_name,
@@ -19,7 +32,12 @@ setup(
         ),
         (
             "share/" + package_name + "/config",
-            ["config/trajectory_params.yaml", "config/velocity_filter_params.yaml"],
+            [
+                "config/publisher_params_manager.yaml",
+                "config/subscriber_params_manager.yaml",
+                "config/trajectory_params.yaml",
+                "config/velocity_filter_params.yaml",
+            ],
         ),
     ],
     install_requires=["setuptools"],

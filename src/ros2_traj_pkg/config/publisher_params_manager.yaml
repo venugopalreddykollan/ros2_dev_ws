@@ -1,0 +1,28 @@
+trajectory_planner:
+  publisher_frequency:
+    type: double
+    default_value: 60.0
+    description: "Pose publishing frequency in Hz"
+    validation:
+      bounds<>: [1.0, 200.0]
+  
+  max_velocity:
+    type: double
+    default_value: 1.0
+    description: "Maximum allowed velocity in m/s"
+    validation:
+      bounds<>: [0.1, 50.0]
+  
+  max_acceleration:
+    type: double
+    default_value: 0.5
+    description: "Maximum allowed acceleration in m/s²"
+    validation:
+      bounds<>: [0.1, 100.0]
+  
+  max_jerk:
+    type: double
+    default_value: 2.0
+    description: "Maximum allowed jerk in m/s³"
+    validation:
+      bounds<>: [0.1, 1000.0]

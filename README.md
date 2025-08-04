@@ -123,7 +123,7 @@ ros2_dev_ws
   - **ROS2 Installation:**
     - follow this steps for installing ROS2 Humble [https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html]
   ### Requirements--
-    - Install colcon
+    - **Install colcon**
       ```bash
       # Install essential tools
       sudo apt update
@@ -138,7 +138,7 @@ ros2_dev_ws
       sudo apt update
       sudo apt install python3-rosdep
       ```
-    - **To run the Dockerfile make sure DOcker Desktop is installed**
+  - **To run the Dockerfile make sure DOcker Desktop is installed**
  
 
 ## 7.Usage
@@ -149,6 +149,7 @@ ros2_dev_ws
       source /opt/ros/humble/setup.bash
 
       # Clone the workspace
+      git clone https://github.com/PickNikRobotics/generate_parameter_library.git
       git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
       cd ros2_dev_ws
 
@@ -217,7 +218,8 @@ ros2_dev_ws
   - Make sure that Docker Desktop is running 
 
     ```bash
-    # Clone the repository
+    # Clone the repositories
+    git clone https://github.com/PickNikRobotics/generate_parameter_library.git
     git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
     cd ros2_dev_ws
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+# Uncomment all the lines below if you you wish not to use the generate_parameter_library
+# and comment the generated parameters
+# declare and get the parameters
 """
 Velocity Filter Node for ROS2.
 
@@ -20,6 +22,9 @@ from geometry_msgs.msg import PoseStamped, Vector3Stamped
 from std_msgs.msg import Float64
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
+# import for generated parameters
+from ros2_traj_pkg.velocity_filter_parameters import velocity_filter
+
 
 class VelocityFilterNode(Node):
     """
@@ -36,28 +41,25 @@ class VelocityFilterNode(Node):
     /velocity_comparison (geometry_msgs/Vector3Stamped): Velocity difference for analysis
     /speed_difference (std_msgs/Float64): Speed difference for filter effectiveness
     /filter_effectiveness (std_msgs/Float64): Filter performance metric (0-1)
-
-    Parameters
-    ----------
-    cutoff_frequency (float): Filter cutoff frequency [Hz] (default: 2.0)
-    sample_rate (float): Expected pose rate [Hz] (default: 50.0)
-    velocity_bounds (float): Maximum expected velocity [m/s] (default: 10.0)
-
     """
 
     def __init__(self):
-        """Initialize the velocity filter node with parameters and communication."""
+        """Initialize the velocity filter node with advanced parameter management."""
         super().__init__("velocity_filter")
 
-        # Declare parameters with validation
-        self.declare_parameter("cutoff_frequency", 2.0)
-        self.declare_parameter("sample_rate", 50.0)
-        self.declare_parameter("velocity_bounds", 10.0)
+        #  Initialize parameter listener for generate_parameter_library
+        self.param_listener = velocity_filter.ParamListener(self)
+        self.params = self.param_listener.get_params()
 
-        # Get parameters
-        self.cutoff_freq = self.get_parameter("cutoff_frequency").value
-        self.sample_rate = self.get_parameter("sample_rate").value
-        self.velocity_bounds = self.get_parameter("velocity_bounds").value
+        #  Use parameters from generated module
+        self.cutoff_freq = self.params.cutoff_frequency
+        self.sample_rate = self.params.sample_rate
+        self.velocity_bounds = self.params.velocity_bounds
+
+        self.get_logger().info("Velocity Filter Parameter Management Initialized")
+        self.get_logger().info(f"Cutoff frequency: {self.cutoff_freq} Hz")
+        self.get_logger().info(f"Sample rate: {self.sample_rate} Hz")
+        self.get_logger().info(f"Velocity bounds: {self.velocity_bounds} m/s")
 
         # Validate parameters
         if self.cutoff_freq <= 0.0 or self.cutoff_freq > self.sample_rate / 2:
@@ -67,21 +69,8 @@ class VelocityFilterNode(Node):
             )
             return
 
-        # Calculate filter coefficient: α = dt/(RC + dt)
-        rc = 1.0 / (2.0 * math.pi * self.cutoff_freq)
-        dt = 1.0 / self.sample_rate
-        self.alpha = dt / (rc + dt)
-
-        self.get_logger().info("Filter parameters loaded:")
-        self.get_logger().info(f"Cutoff frequency: {self.cutoff_freq} Hz")
-        self.get_logger().info(f"Sample rate: {self.sample_rate} Hz")
-        self.get_logger().info(f"Velocity bounds: {self.velocity_bounds} m/s")
-        self.get_logger().debug(
-            f"Filter initialized - RC: {rc:.4f}, dt: {dt:.4f}, "
-            f"alpha: {self.alpha:.4f}"
-        )
-
-        self._setup_communication()
+        # Calculate filter coefficient
+        self._update_filter_coefficient()
 
         # Initialize state variables
         self.pose_history = deque(maxlen=2)
@@ -89,16 +78,44 @@ class VelocityFilterNode(Node):
         self.max_raw_speed = 0.0
         self.max_filtered_speed = 0.0
 
-        self.get_logger().info("Velocity Filter Node initialized.")
+        # Setup communication
+        self._setup_communication()
+
+        self.get_logger().info(" Velocity Filter Node initialized successfully!")
+
+    def _update_parameters_if_changed(self):
+        """Update parameters if they changed at runtime."""
+        if self.param_listener.is_old(self.params):
+            old_cutoff = self.cutoff_freq
+            self.params = self.param_listener.get_params()
+            self.cutoff_freq = self.params.cutoff_frequency
+            self.sample_rate = self.params.sample_rate
+            self.velocity_bounds = self.params.velocity_bounds
+
+            if abs(self.cutoff_freq - old_cutoff) > 0.01:
+                self.get_logger().info(
+                    f" Cutoff frequency updated: {self.cutoff_freq} Hz"
+                )
+                self._update_filter_coefficient()
+
+            self.get_logger().info(" Filter parameters refreshed")
+
+    def _update_filter_coefficient(self):
+        """Update filter coefficient based on current parameters."""
+        dt = 1.0 / self.sample_rate
+        rc = 1.0 / (2.0 * math.pi * self.cutoff_freq)
+        self.alpha = dt / (rc + dt)
+        self.get_logger().info(f"Filter coefficient α = {self.alpha:.4f}")
 
     def _setup_communication(self):
         """Set up publishers and subscribers with appropriate QoS."""
         # Configure QoS for velocity data
         vel_qos = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
-            depth=5,
+            depth=10,
         )
+
         # Vector Publishers (for ROS ecosystem)
         self.raw_velocity_pub = self.create_publisher(
             Vector3Stamped, "raw_velocity", vel_qos
@@ -110,7 +127,7 @@ class VelocityFilterNode(Node):
             Vector3Stamped, "velocity_comparison", vel_qos
         )
 
-        # Scalar Publishers for PlotJuggler
+        # Scalar Publishers for PlotJuggler (Task requirement for visualization)
         # Raw velocity components
         self.raw_velocity_x_pub = self.create_publisher(
             Float64, "raw_velocity_x", vel_qos
@@ -151,11 +168,21 @@ class VelocityFilterNode(Node):
         )
 
     def pose_callback(self, msg: PoseStamped) -> None:
-        """Process incoming pose data and compute filtered velocities."""
+        """Process incoming pose data and compute filtered velocities with detailed logging."""
         try:
+            # Update parameters if changed
+            self._update_parameters_if_changed()
+
             current_time = self.get_clock().now()
             current_pose = np.array(
                 [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
+            )
+
+            # Log received pose data with timestamp (Task requirement)
+            timestamp = current_time.nanoseconds / 1e9
+            self.get_logger().info(
+                f"[{timestamp:.6f}s] RECEIVED POSE: "
+                f"x={current_pose[0]:.4f}, y={current_pose[1]:.4f}, z={current_pose[2]:.4f} m"
             )
 
             # Validate pose data
@@ -174,7 +201,7 @@ class VelocityFilterNode(Node):
             self.get_logger().error(f"Error in pose callback: {e}")
 
     def _compute_and_publish_velocity(self) -> None:
-        """Compute raw and filtered velocities from pose history."""
+        """Compute raw and filtered velocities from pose history with logging."""
         try:
             # Get the last two poses and timestamps
             (prev_pose, prev_time), (curr_pose, curr_time) = (
@@ -191,6 +218,14 @@ class VelocityFilterNode(Node):
             raw_velocity = (curr_pose - prev_pose) / dt
             raw_speed = np.linalg.norm(raw_velocity)
 
+            # Log computed raw velocity with timestamp (Task requirement)
+            timestamp = curr_time.nanoseconds / 1e9
+            self.get_logger().info(
+                f"[{timestamp:.6f}s] RAW VELOCITY: "
+                f"vx={raw_velocity[0]:.4f}, vy={raw_velocity[1]:.4f}, vz={raw_velocity[2]:.4f} m/s, "
+                f"speed={raw_speed:.4f} m/s"
+            )
+
             # Check for excessive velocities (likely noise)
             if raw_speed > self.velocity_bounds:
                 self.get_logger().warn(
@@ -204,15 +239,26 @@ class VelocityFilterNode(Node):
             )
             filtered_speed = np.linalg.norm(self.filtered_velocity)
 
+            # Log filtered velocity with timestamp (Task requirement)
+            self.get_logger().info(
+                f"[{timestamp:.6f}s] FILTERED VELOCITY: "
+                f"vx={self.filtered_velocity[0]:.4f}, vy={self.filtered_velocity[1]:.4f}, "
+                f"vz={self.filtered_velocity[2]:.4f} m/s, speed={filtered_speed:.4f} m/s"
+            )
+
             # Update maximum speeds for statistics
             self.max_raw_speed = max(self.max_raw_speed, raw_speed)
             self.max_filtered_speed = max(self.max_filtered_speed, filtered_speed)
 
-            if self.max_raw_speed > 0:
-                self.get_logger().debug(
-                    f"Max speeds: Raw={self.max_raw_speed:.3f}, "
-                    f"Filtered={self.max_filtered_speed:.3f} m/s"
-                )
+            # Log filter effectiveness (Task requirement)
+            speed_diff = abs(raw_speed - filtered_speed)
+            effectiveness = (
+                min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
+            )
+            self.get_logger().info(
+                f"[{timestamp:.6f}s] FILTER ANALYSIS: "
+                f"speed_reduction={speed_diff:.4f} m/s, effectiveness={effectiveness:.3f}"
+            )
 
             self._publish_velocity_data(
                 raw_velocity,
@@ -233,9 +279,15 @@ class VelocityFilterNode(Node):
         raw_speed: float,
         filt_speed: float,
     ) -> None:
-        """Publish all velocity-related data and analysis metrics."""
+        """Publish all velocity-related data and analysis metrics with enhanced logging."""
         # Create timestamp
         stamp = timestamp.to_msg()
+
+        # Enhanced logging for published values (Task requirement)
+        self.get_logger().info(
+            f"[{timestamp.nanoseconds / 1e9:.6f}s] PUBLISHING: "
+            f"Raw speed={raw_speed:.4f} m/s, Filtered speed={filt_speed:.4f} m/s"
+        )
 
         # Publish Vector Messages for ROS ecosystem
         raw_vel_msg = Vector3Stamped()
@@ -261,7 +313,7 @@ class VelocityFilterNode(Node):
         )
         self.velocity_comparison_pub.publish(comparison_msg)
 
-        # Publish Scalar Messages for PlotJuggler
+        # Publish Scalar Messages for PlotJuggler (Task requirement for visualization)
         # Raw velocity components
         self.raw_velocity_x_pub.publish(Float64(data=float(raw_vel[0])))
         self.raw_velocity_y_pub.publish(Float64(data=float(raw_vel[1])))
@@ -284,17 +336,29 @@ class VelocityFilterNode(Node):
         effectiveness = min(1.0, speed_diff / raw_speed) if raw_speed > 0.001 else 0.0
         self.filter_effectiveness_pub.publish(Float64(data=effectiveness))
 
+        # Log statistics periodically (Task requirement)
+        if self.max_raw_speed > 0:
+            self.get_logger().debug(
+                f"Statistics: Max raw speed={self.max_raw_speed:.3f} m/s, "
+                f"Max filtered speed={self.max_filtered_speed:.3f} m/s, "
+                f"Current effectiveness={effectiveness:.3f}"
+            )
+
 
 def main(args=None) -> None:
     """Initialize and run the velocity filter node."""
     rclpy.init(args=args)
-    node = VelocityFilterNode()
+    node = None
     try:
+        node = VelocityFilterNode()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"Unexpected error: {e}")
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.shutdown()
 
 

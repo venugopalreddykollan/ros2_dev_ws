@@ -1,0 +1,21 @@
+velocity_filter:
+  cutoff_frequency:
+    type: double
+    default_value: 2.0
+    description: "Low-pass filter cutoff frequency in Hz"
+    validation:
+      bounds<>: [0.1, 25.0]
+  
+  sample_rate:
+    type: double
+    default_value: 50.0
+    description: "Expected sample rate in Hz (should match trajectory publisher)"
+    validation:
+      bounds<>: [1.0, 200.0]
+  
+  velocity_bounds:
+    type: double
+    default_value: 10.0
+    description: "Maximum expected velocity magnitude in m/s"
+    validation:
+      bounds<>: [0.1, 100.0]
