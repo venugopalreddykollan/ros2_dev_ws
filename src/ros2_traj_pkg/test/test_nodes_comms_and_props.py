@@ -7,7 +7,7 @@ import unittest
 
 from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
 import rclpy
-
+import pytest
 from custom_interface.srv import PlanTrajectory
 
 @pytest.mark.skip(reason="Disabled for CI - requires ROS2 runtime")
