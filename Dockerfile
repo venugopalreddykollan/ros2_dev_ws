@@ -22,8 +22,8 @@ RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
 # Update rosdep and install dependencies
 RUN rosdep init || true && \
     rosdep update && \
-    . /opt/ros/${ROS_D  ISTRO}/setup.bash && \
-    rosdep install --from-paths src --ignore-src -r -y
+    . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    rosdep install --from-paths src --ignore-src -r -y && \
     rm -rf /var/lib/apt/lists/*
 
 
