@@ -138,7 +138,7 @@ ros2_dev_ws
       sudo apt update
       sudo apt install python3-rosdep
       ```
-    - **To run the Dockerfile make sure docker is Docker**
+    - **To run the Dockerfile make sure DOcker Desktop is installed**
  
 
 ## 7.Usage
