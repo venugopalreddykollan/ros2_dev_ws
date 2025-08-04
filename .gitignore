@@ -1,10 +1,11 @@
 # ROS2 Workspace .gitignore - Following ROS2 Package Standards
 
-# === BUILD ARTIFACTS TO IGNORE ===
-# ROS2 build directories (workspace level)
+
+# BUILD ARTIFACTS TO IGNORE
 build/
 install/
 log/
+
 
 # Python artifacts
 *.pyc
@@ -12,60 +13,47 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*.so
-*.egg-info/
 .pytest_cache/
-dist/
-*.egg
 
-# === IDE AND EDITOR FILES ===
+
+# IDE AND EDITOR FILES
 .vscode/
-.idea/
 *.swp
 *.swo
 *~
 .DS_Store
-Thumbs.db
 
-# === TEMPORARY AND LOG FILES ===
+
+# TEMPORARY AND LOG FILES
 *.tmp
 *.log
 *.bak
 *.orig
 *.rej
 
-# === ENVIRONMENT FILES ===
-.env
-.venv
-venv/
-env/
 
-# === ROS2 WORKSPACE STRUCTURE ===
-# Include source directory and all ROS2 packages
+# ENVIRONMENT FILES
+.env
+
+
+# KEEP IMPORTANT FILES
 !src/
 !src/**/
-
-# Workspace configuration files
 !*.md
 !*.txt
 !LICENSE
 !.gitignore
 
-# === EXCLUDE BUILD ARTIFACTS WITHIN PACKAGES ===
-# Each package may have its own build artifacts to exclude
+
+# EXCLUDE BUILD ARTIFACTS WITHIN PACKAGES
 src/**/build/
 src/**/install/
 src/**/log/
 
-# === PROJECT-SPECIFIC EXCLUSIONS ===
-# Exclude pyproject.toml in packages (not standard for ROS2 packages)
+
+# Exclude pyproject.toml in packages
 src/**/pyproject.toml
+
 
 # Allow workspace-level pyproject.toml for linting configuration
 !pyproject.toml
-
-# Exclude personal configuration
-config/personal/
-*.pem
-*.key
-.env.local
