@@ -30,8 +30,11 @@ RUN rosdep init || true && \
 
 # Build the packages custom_interface and ros2_traj_pkg
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    # Build generate_parameter_library and its dependencies first
+    colcon build --packages-select generate_parameter_library generate_parameter_library_py parameter_traits && \
+    . install/setup.bash && \
     colcon build --packages-select custom_interface && \
-    source install/setup.bash && \
+    . install/setup.bash && \
     colcon build --packages-select ros2_traj_pkg"
 
 # Source workspace in bashrc for convenience
