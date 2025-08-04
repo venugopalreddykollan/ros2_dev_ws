@@ -2,7 +2,6 @@
 
 # Simple linting script for ros2_traj_pkg only
 echo "Running Code Quality Checks for ros2_traj_pkg"
-echo "=============================================="
 
 # Check if ros2_traj_pkg directory exists
 if [[ ! -d "src/ros2_traj_pkg" ]]; then
@@ -46,7 +45,7 @@ fi
 echo
 
 # Summary
-echo "=============================================="
+echo "STATUS SUMMARY"
 if [[ $OVERALL_STATUS -eq 0 ]]; then
     echo "All checks PASSED for ros2_traj_pkg!"
 else
