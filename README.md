@@ -41,7 +41,7 @@ A complete ROS2 workspace featuring advanced trajectory planning with 3rd order 
 
 
 ## 3. velocity Visualisation Plots
-- **Plot video is uploaded in the doc section of github. Do check it** 
+- **Plotting is done with the help of PlotJuggler**
 - **Plotting is also shown for raw and filtered speed since speed monitoring is essential for real robots** 
 
 
