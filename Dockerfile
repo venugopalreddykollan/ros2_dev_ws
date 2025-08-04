@@ -9,15 +9,34 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     git \
     python3-pip \
+    python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
 # Set workspace directory
-RUN mkdir -p /ros2_dev_ws
+RUN mkdir -p /ros2_dev_ws/src
 WORKDIR /ros2_dev_ws
 
 #cloning the git repositories
-RUN git clone https://github.com/PickNikRobotics/generate_parameter_library.git
-RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+RUN cd src && \
+    git clone https://github.com/PickNikRobotics/generate_parameter_library.git && \
+    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git temp_repo
+
+# Extract your packages from the nested src directory
+RUN cd src && \
+    # Copy your packages from temp_workspace/src/ to current src/
+    cp -r temp_workspace/src/custom_interface . && \
+    cp -r temp_workspace/src/ros2_traj_pkg . && \
+    # Clean up temporary directory
+    rm -rf temp_workspace
+
+# Verify final directory structure
+RUN echo "Final Workspace Structure" && \
+    ls -la && \
+    echo "Source Directory Contents" && \
+    ls -la src/ && \
+    echo "Package Contents" && \
+    ls -la src/custom_interface/ src/ros2_traj_pkg/ src/generate_parameter_library/
+
 
 # Update rosdep and install dependencies
 RUN apt-get update && \
@@ -27,23 +46,17 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 
-#Optionally list the contents to verify the clone
-# This can help in debugging if the clone fails or if the directory structure is not as expected
-RUN ls -la && ls -la src
-
-
-
-# Build the packages custom_interface and ros2_traj_pkg
+# Build the packages in correct dependency order
 RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
     # Build generate_parameter_library and its dependencies first
     colcon build --packages-select generate_parameter_library generate_parameter_library_py parameter_traits && \
     . install/setup.bash && \
     colcon build --packages-select custom_interface && \
     . install/setup.bash && \
-    colcon build --packages-select ros2_traj_pkg
-    .install/setup.bash && \
+    colcon build --packages-select ros2_traj_pkg && \
+    . install/setup.bash
 
-    
+
 # Source workspace in bashrc for convenience
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
     echo "source /ros2_dev_ws/install/setup.bash" >> /root/.bashrc
