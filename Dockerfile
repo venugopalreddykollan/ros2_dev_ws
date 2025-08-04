@@ -49,14 +49,15 @@ RUN bash -c "\
 
 
 # Build the packages in correct dependency order
-RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
-    # Build generate_parameter_library and its dependencies first
+RUN bash -c "\
+    source /opt/ros/humble/setup.bash && \
     colcon build --packages-select generate_parameter_library generate_parameter_library_py parameter_traits && \
-    . install/setup.bash && \
+    source install/setup.bash && \
     colcon build --packages-select custom_interface && \
-    . install/setup.bash && \
+    source install/setup.bash && \
     colcon build --packages-select ros2_traj_pkg && \
-    . install/setup.bash
+    source install/setup.bash \
+    "
 
 
 # Source workspace in bashrc for convenience
