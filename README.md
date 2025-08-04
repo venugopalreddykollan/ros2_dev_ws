@@ -149,6 +149,71 @@ ros2_dev_ws
       # Install dependencies
       rosdep install --from-paths src --ignore-src -r -y
 
+      # Install development dependencies (for code quality tools)
+      pip3 install -r requirements-dev.txt
+
+      # Build the workspace (interface package first)
+      colcon build --packages-select custom_interface
+      source install/setup.bash
+      colcon build --packages-select ros2_traj_pkg
+
+      # Source the workspace
+      source install/setup.bash
+      ```
+
+  ### Build and Run with Docker
+- Install Docker Desktop for Windows
+- Ensure WSL2 integration is enabled
+
+### Windows Powershell
+    ```
+    # Clone the repository
+    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+    cd ros2_dev_ws
+
+    # Build Docker image
+    docker build -t ros2-traj-workspace .
+
+# Inside container, build and run
+colcon build
+source install/setup.bash
+ros2 launch ros2_traj_pkg complete_system_launch.py
+```
+
+### Quick Start Commands
+
+```bash
+# Build and run system
+colcon build && source install/setup.bash
+ros2 launch ros2_traj_pkg complete_system_launch.py
+
+# Run code quality checks
+./run_linting.sh
+
+# Auto-format code
+black src/ && isort src/
+```
+
+### Platform-Specific Notes
+
+#### Ubuntu Native
+- Full GUI support for visualization tools
+- Best performance for real-time applications
+- Direct hardware access if needed
+
+#### Windows WSL2
+- Limited GUI support (requires X11 forwarding or WSLg)
+- Good performance but some overhead
+- May require additional setup for hardware interfaces
+
+```bash
+# For WSL2 GUI support (optional)
+sudo apt install x11-apps
+export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
+- Isolated from host system
+- May r`
+  - once you run the docker commands it opens the root shell within the docker container where you can run the shell commands and launch the nodes
+      ```bash
       # Build the workspace
       colcon build --symlink-install
       # Sourcing the Environment
