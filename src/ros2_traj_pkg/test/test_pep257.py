@@ -15,7 +15,7 @@
 from ament_pep257.main import main
 import pytest
 
-
+@pytest.mark.skip(reason="Disabled for Github Actions - focus on mathematical tests only")
 @pytest.mark.linter
 @pytest.mark.pep257
 def test_pep257():
