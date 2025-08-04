@@ -19,7 +19,7 @@ WORKDIR /ros2_dev_ws
 #cloning the git repositories
 RUN cd src && \
     git clone https://github.com/PickNikRobotics/generate_parameter_library.git && \
-    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git temp_repo
+    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git temp_workspace
 
 # Extract your packages from the nested src directory
 RUN cd src && \
