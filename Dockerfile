@@ -16,6 +16,7 @@ RUN mkdir -p /ros2_dev_ws
 WORKDIR /ros2_dev_ws
 
 #cloning the git repositories
+RUN git clone https://github.com/PickNikRobotics/generate_parameter_library.git
 RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git .
 
 #Optionally list the contents to verify the clone
