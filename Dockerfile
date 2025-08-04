@@ -20,7 +20,7 @@ RUN git clone https://github.com/PickNikRobotics/generate_parameter_library.git
 RUN git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
 
 # Update rosdep and install dependencies
-RUN rosdep init || true && \
+RUN apt-get update && \
     rosdep update && \
     . /opt/ros/${ROS_DISTRO}/setup.bash && \
     rosdep install --from-paths src --ignore-src -r -y && \
@@ -34,14 +34,16 @@ RUN ls -la && ls -la src
 
 
 # Build the packages custom_interface and ros2_traj_pkg
-RUN /bin/bash -c  . /opt/ros/${ROS_DISTRO}/setup.bash && \
+RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
     # Build generate_parameter_library and its dependencies first
     colcon build --packages-select generate_parameter_library generate_parameter_library_py parameter_traits && \
     . install/setup.bash && \
     colcon build --packages-select custom_interface && \
     . install/setup.bash && \
     colcon build --packages-select ros2_traj_pkg
+    .install/setup.bash && \
 
+    
 # Source workspace in bashrc for convenience
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
     echo "source /ros2_dev_ws/install/setup.bash" >> /root/.bashrc
