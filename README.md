@@ -2,6 +2,7 @@
   - **Overview**
   - **Features**
   - **Repository Structure**
+  - **Velocity visualisation**
   - **Packages Overview**
     - custom_interface
     - ros2_traj_pkg
@@ -10,18 +11,16 @@
   - **Installation**
     - Prerequisites
     - Standard Installation
-    - Requirement
-    - Docker Installation
+    - Docker Instsallation
   - **Usage**
-    - Running node with just the repo cloning
-      - Clone and Build
-      - Running the nodes
+    - Clone repo and check launch manually
+    - Development
+      - Package dependencies
+      - Build order
     - Docker
     - Code Quality
-      - Install Development      Dependencies
+      - Install Development Dependencies
       - Run workspace level Linting
-    - Run tests
-  - **Troubleshooting**
   - **License**
   - **Support**
 
@@ -32,14 +31,19 @@ A complete ROS2 workspace featuring advanced trajectory planning with 3rd order 
 
 
 ## 2.Features:
--   **3rd Order Polynomial Trajectory Generation** with smooth acceleration profiles
+-   **3rd Order Polynomial Trajectory Generation** th smooth acceleration profiles
 - **Real-time Velocity Filtering** using low-pass RC filters
 - **Visualization** using plot_juggler
 - **Comprehensive Parameter Management** via YAML configuration
 - **Professional Development Tools** with testing
 
-## 3.Repository Structure
 
+## 3. velocity Visualisation Plots
+- **Plot video is uploaded in the doc section of github. Do check it** 
+- **Plotting is also shown for raw and filtered speed since speed monitoring is essential for real robots** 
+
+
+## 4.Repository Structure
 This repository follows standard ROS2 workspace conventions:
 
 ```
@@ -85,7 +89,8 @@ ros2_dev_ws
   |---run_linting.sh
 ```
 
-## 4.Packages Overview
+
+## 5.Packages Overview
 
 ### 1. custom_interface
 -  Defines custom service interfaces for trajectory planning
@@ -107,22 +112,23 @@ ros2_dev_ws
   - `/raw_velocity` (geometry_msgs/Vector3) - Computed raw velocity  
   - `/filtered_velocity` (geometry_msgs/Vector3) - Low-pass filtered velocity
 
-## 5. Installation
+## 6. Installation
   ### Prerequisites--
   - **Operating System Requirements:**
       - Ubuntu 22.04 (Recommended)
       - For Windows Users
         - Check if WSL2 is enabled
         - Install Ubuntu 22.04 LTS app in Microsoft
+  ### Standard Installation--
   - **ROS2 Installation:**
     - follow this steps for installing ROS2 Humble [https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html]
-  - **Requirements**
+  ### Requirements--
     - Install colcon
       ```bash
       # Install essential tools
       sudo apt update
       sudo apt upgrade
-      sudo apt install ros-humble-desktop   python3-colcon-common-extensions
+      sudo apt install python3-colcon-common-extensions
 
       #Initialize and update rosdep
       sudo rosdep init
@@ -135,9 +141,9 @@ ros2_dev_ws
     - **To run the Dockerfile make sure docker is Docker**
  
 
-## 6.Usage
-   ### Running nodes with repo cloning
-   - Clone and Build
+## 7.Usage
+  ### Running nodes with repo cloning
+   - **Clone and Build**
       ```bash
       # Sourcing the ros humble
       source /opt/ros/humble/setup.bash
@@ -147,6 +153,7 @@ ros2_dev_ws
       cd ros2_dev_ws
 
       # Install dependencies
+      rosdep update
       rosdep install --from-paths src --ignore-src -r -y
 
       # Install development dependencies (for code quality tools)
@@ -161,90 +168,23 @@ ros2_dev_ws
       source install/setup.bash
       ```
 
-  ### Build and Run with Docker
-- Install Docker Desktop for Windows
-- Ensure WSL2 integration is enabled
-
-### Windows Powershell
-    ```
-    # Clone the repository
-    git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
-    cd ros2_dev_ws
-
-    # Build Docker image
-    docker build -t ros2-traj-workspace .
-
-# Inside container, build and run
-colcon build
-source install/setup.bash
-ros2 launch ros2_traj_pkg complete_system_launch.py
-```
-
-### Quick Start Commands
-
-```bash
-# Build and run system
-colcon build && source install/setup.bash
-ros2 launch ros2_traj_pkg complete_system_launch.py
-
-# Run code quality checks
-./run_linting.sh
-
-# Auto-format code
-black src/ && isort src/
-```
-
-### Platform-Specific Notes
-
-#### Ubuntu Native
-- Full GUI support for visualization tools
-- Best performance for real-time applications
-- Direct hardware access if needed
-
-#### Windows WSL2
-- Limited GUI support (requires X11 forwarding or WSLg)
-- Good performance but some overhead
-- May require additional setup for hardware interfaces
-
-```bash
-# For WSL2 GUI support (optional)
-sudo apt install x11-apps
-export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
-- Isolated from host system
-- May r`
-  - once you run the docker commands it opens the root shell within the docker container where you can run the shell commands and launch the nodes
-      ```bash
-      # Build the workspace
-      colcon build --symlink-install
-      # Sourcing the Environment
-      source install/setup.bash
-      ```
-  - Launching the nodes
-    - To check the functionalities of the Nodes run the following commands in the bash terminal
+  #### Launching the nodes
+  - **To check the functionalities of the Nodes run the following commands in the bash terminal**
       ```bash
       ros2 launch ros2_traj_pkg complete_system_launch.py
       ```
-    #### SERVICE
-    - Open a new terminal and run the below commands to call the service
+
+  #### Service call
+  - **Open a new terminal and run the below commands to call the service**
       ```bash
       # Source the environment
       source install/setup.bash
 
       # Call the service
-      ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory "{
-        start: {
-          position: {x: 0.0, y: 0.0, z: 0.0},
-          orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-        },
-        goal: {
-          position: {x: 5.0, y: 3.0, z: 2.0}, 
-          orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-        },
-        duration: 10.0
-      }"
+      ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory  "{start: {position: {x: 0.0, y: 0.0, z: 0.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},goal: {position: {x: 5.0, y: 3.0, z: 2.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},duration: 10.0}"
       ```
-    #### Pose Publishing
-    - Open another terminal to check for the functionalities
+  #### Pose Publishing
+  - **Open another terminal to check for the functionalities**
       ```bash
       # Source the environment
       source install/setup.bash
@@ -258,8 +198,9 @@ export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
       # To check the published poses
       ros2 topic echo /current_pose
       ```
-    #### Velocity Computation
-    - Open another terminal to check for computed velocities and filtered velocities
+
+  #### Velocity Computation
+  - **Open another terminal to check for computed velocities and filtered velocities**
       ```bash
       # Source the environment
       source install/setup.bash
@@ -289,6 +230,30 @@ export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
     # Run the container
     docker run -it ros2_dev_ws
     ```
+    #### Run and launch the ros2 nodes
+    ```bash
+    #Build the packages
+    colcon build
+
+    #sourcing 
+    source install/setup.py
+
+    #Launching nodes
+    ros2 launch ros2_traj_pkg complete_system_launch.py
+    ```
+    - **To check the topics data** 
+    ```bash
+    #To list all the nodes
+    ros2 node list
+
+    #To list all the topics 
+    ros2 topic list -t
+  
+    #To see the data published on each topic
+    ros2 topic echo /current_pose
+    ros2 topic echo /raw_velocity
+    ros2 topic echo /filetered_velocity
+    ```
 
   ### Code Quality
   - The workspace includes comprehensive linting and formatting tools to maintain professional code standards across all packages.
@@ -304,8 +269,6 @@ export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
 
     # Run comprehensive linting on all packages
     ./run_linting.sh
-
-    # If missing tools (mypy, etc.), install them by pressing 'y' when prompted
     ```
   ### Run Tests
   - This 
@@ -320,7 +283,7 @@ export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
       colcon test-result --verbose
       ```
 
-## 7. Troubleshooting
+## 8. Troubleshooting
   ### Common Issues
   - **Build fails for ros2_traj_pkg**
       ```bash
@@ -334,11 +297,11 @@ export DISPLAY=$(cat /etc/resolv.conf | grep namonment across all platforms
     # Solution: Source the workspace
     source install/setup.bash
     ```
-## 8. License
+## 9. License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](src/ros2_traj_pkg/LICENSE) file for details.
 
-## 9. Support
+## 10. Support
   ### For issues or feature requests
   - Open an issue in my repository
   - Provide detailed information regarding your problem
