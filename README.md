@@ -21,6 +21,8 @@
     - Code Quality
       - Install Development Dependencies
       - Run workspace level Linting
+    - Github Actions
+    - Run Tests
   - **License**
   - **Support**
 
@@ -157,9 +159,6 @@ ros2_dev_ws
       rosdep update
       rosdep install --from-paths src --ignore-src -r -y
 
-      # Install development dependencies (for code quality tools)
-      pip3 install -r requirements-dev.txt
-
       # Build the workspace (interface package first)
       colcon build --packages-select custom_interface
       source install/setup.bash
@@ -182,7 +181,7 @@ ros2_dev_ws
       source install/setup.bash
 
       # Call the service
-      ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory  "{start: {position: {x: 0.0, y: 0.0, z: 0.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},goal: {position: {x: 5.0, y: 3.0, z: 2.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},duration: 10.0}"
+      ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory  "{start: {position: {x: 0.0, y: 0.0, z: 0.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},goal: {position: {x: 5.0, y: 3.0, z: 2.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},duration: 30.0}"
       ```
   #### Pose Publishing
   - **Open another terminal to check for the functionalities**
@@ -210,7 +209,10 @@ ros2_dev_ws
       ros2 topic echo /raw_velocity
 
       # To check the filtered velocities published
-      ros2 topic echo /filtered_velocity 
+      ros2 topic echo /filtered_velocity
+
+      # To check the parameter
+      ros2 param get /trajectory_planner publisher_frequency 
       ```
 
   ### Build and Run Docker
@@ -221,13 +223,12 @@ ros2_dev_ws
     # Clone the repositories
     git clone https://github.com/PickNikRobotics/generate_parameter_library.git
     git clone https://github.com/venugopalreddykollan/ros2_dev_ws.git
+    
+    # Move to the directory
     cd ros2_dev_ws
 
     # Build Docker image
     docker build -t ros2_dev_ws .
-
-    # To verify the image is build succesfully
-    docker image
 
     # Run the container
     docker run -it ros2_dev_ws
@@ -237,7 +238,7 @@ ros2_dev_ws
     #Build the packages
     colcon build
 
-    #sourcing 
+    #sourcing(Make sure you source in every terminal)
     source install/setup.py
 
     #Launching nodes
@@ -245,6 +246,10 @@ ros2_dev_ws
     ```
     - **To check the topics data** 
     ```bash
+    # Call the service (duration should not be more than 300)
+
+    ros2 service call /plan_trajectory custom_interface/srv/PlanTrajectory  "{start: {position: {x: 0.0, y: 0.0, z: 0.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},goal: {position: {x: 5.0, y: 3.0, z: 2.0},orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}},duration: 40.0}"
+
     #To list all the nodes
     ros2 node list
 
@@ -272,23 +277,28 @@ ros2_dev_ws
     # Run comprehensive linting on all packages
     ./run_linting.sh
     ```
+  ### Github actions 
+  - **Github Actions is able to apply linting and formatting everytime someone pushes to the repo main branch**
+
   ### Run Tests
-  - This 
-      ```bash
-      # Run all tests
-      colcon test
+  ```bash
+  # Run all tests
+  colcon test
 
-      # Run specific test
-      colcon test --packages-select ros2_traj_pkg
+  # Run specific test
+  colcon test --packages-select ros2_traj_pkg
 
-      # To check test results
-      colcon test-result --verbose
-      ```
+  # To check test results
+  colcon test-result --verbose
+  ```
 
 ## 8. Troubleshooting
   ### Common Issues
   - **Build fails for ros2_traj_pkg**
       ```bash
+      # Remove the build files and then rebuild
+      rm -rf build/ install/ log/
+
       # Solution: Build custom_interface first
       colcon build --packages-select custom_interface
       source install/setup.bash
